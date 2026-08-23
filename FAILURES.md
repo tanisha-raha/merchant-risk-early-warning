@@ -94,11 +94,15 @@ cessation-onset over-indexing (which peaks Apr–Jun 2018). No supported
 real-world story here — treating this as a boundary-confirmation artefact
 until shown otherwise.
 
-**Resolution:** not resolved — flagged in `DECISIONS.md` D6 as an open
-question, since fixing it changes either the label (shrinking the usable
-event count further) or the evaluation design (Phase 2's test window is
-exactly where this concentrates), and that's a modelling decision, not an
-implementation one.
+**Resolution:** resolved 2026-08-23 — `DECISIONS.md` D6. Events confirmed
+within the final N weeks before `STUDY_END` are now treated as censored,
+not events (equivalent to requiring `silence_weeks_observed >= 2*N`).
+Event counts dropped from 858/665/550 to 665/477/357 for N=4/8/12; all
+still clear the kill floor. A calendar-time model covariate was considered
+as an alternative and rejected — see D6 for why. A follow-up check
+(`DECISIONS.md` D7) confirmed a 26-week Phase 2 test window is needed for
+the strictest variant (N=12) to retain a usable number of test-set events
+(151) after this fix.
 
 ### F4 — Sibling-module imports break depending on invocation directory
 

@@ -78,6 +78,31 @@ def build_weekly_hazard(panel: pd.DataFrame, elig: pd.DataFrame, n_weeks: int) -
     return by_week.reset_index()
 
 
+# Candidate Phase 2 test-window widths, purely for this pre-Phase-1 check --
+# NOT a committed split. Widths chosen to bracket a plausible late-window
+# holdout (roughly 3 to 6 months of the 86-week study).
+CANDIDATE_TEST_WIDTHS_WEEKS = [13, 17, 20, 26]
+
+
+def test_window_event_counts(elig_by_n: dict[int, pd.DataFrame]) -> pd.DataFrame:
+    rows = []
+    for n, elig in elig_by_n.items():
+        events = elig[elig["event_B"]]
+        for width in CANDIDATE_TEST_WIDTHS_WEEKS:
+            cutoff = STUDY_END - pd.Timedelta(weeks=width)
+            n_in_test = int((events["event_week"] > cutoff).sum())
+            rows.append(
+                {
+                    "N": n,
+                    "test_width_weeks": width,
+                    "test_start": cutoff.date(),
+                    "events_in_test_window": n_in_test,
+                    "events_in_train_window": len(events) - n_in_test,
+                }
+            )
+    return pd.DataFrame(rows)
+
+
 def main() -> None:
     panel = build_panel(Path("data/raw"))
     panel = add_rolling_rates(panel)
@@ -86,6 +111,7 @@ def main() -> None:
     print(f"STUDY_END = {STUDY_END.date()}\n")
 
     hazard_tables = []
+    elig_by_n = {}
     for n in CESSATION_N_CANDIDATES:
         stats, elig = right_edge_check(panel, per_seller, n)
         print(
@@ -94,9 +120,16 @@ def main() -> None:
             f"confirmed in the final {n} weeks before STUDY_END"
         )
         hazard_tables.append(build_weekly_hazard(panel, elig, n))
+        elig_by_n[n] = elig
 
     hazard = pd.concat(hazard_tables, ignore_index=True)
     hazard.to_csv(FIG_DIR / "phase0_calendar_hazard.csv", index=False)
+
+    print("\n--- provisional test-window event counts (NOT a committed Phase 2 split) ---")
+    test_counts = test_window_event_counts(elig_by_n)
+    pd.set_option("display.width", 160)
+    print(test_counts.to_string(index=False))
+    test_counts.to_csv(FIG_DIR / "phase0_test_window_check.csv", index=False)
 
     fig, axes = plt.subplots(len(CESSATION_N_CANDIDATES), 1, figsize=(11, 3 * len(CESSATION_N_CANDIDATES)), sharex=True)
     for ax, n in zip(axes, CESSATION_N_CANDIDATES):
@@ -104,7 +137,9 @@ def main() -> None:
         ax2 = ax.twinx()
         ax2.bar(sub["week"], sub["n_at_risk"], width=6, color="lightgrey", alpha=0.6, label="n at risk")
         ax.plot(sub["week"], sub["hazard"], color="#C44E52", marker="o", markersize=3, linewidth=1, label="hazard")
-        ax.axvline(STUDY_END - pd.Timedelta(weeks=n), color="black", linestyle="--", linewidth=1)
+        # post-D6, no event can be confirmed after STUDY_END - 2*n (the edge
+        # exclusion doubles the effective margin) -- mark that, not the old N-only line
+        ax.axvline(STUDY_END - pd.Timedelta(weeks=2 * n), color="black", linestyle="--", linewidth=1)
         ax.set_ylabel(f"hazard, N={n}")
         ax2.set_ylabel("n at risk")
         if n == CESSATION_N_CANDIDATES[0]:

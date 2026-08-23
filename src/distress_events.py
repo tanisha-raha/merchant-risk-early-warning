@@ -96,7 +96,19 @@ def compute_eligibility(panel: pd.DataFrame) -> pd.DataFrame:
 def compute_cessation_candidates(
     panel: pd.DataFrame, per_seller: pd.DataFrame, n_weeks: int
 ) -> pd.DataFrame:
-    """Candidates A (quality-filtered) and B (unfiltered) for a given N."""
+    """Candidates A (quality-filtered) and B (unfiltered) for a given N.
+
+    Edge exclusion (DECISIONS.md D6, approved 2026-08-23): an event
+    confirmed with less than N weeks of margin beyond the bare N-week
+    silence requirement -- i.e. whose confirmation date (last_active_week
+    + N) falls within the final N calendar weeks before STUDY_END -- is
+    NOT counted as an event. Those sellers are treated as censored at
+    STUDY_END instead, same as any other seller without enough follow-up
+    to confirm. This is equivalent to requiring silence_weeks_observed
+    >= 2*n_weeks, stated here as "exclude the last N weeks of possible
+    confirmations" because that's the more legible framing of what's being
+    thrown out and why (see FAILURES.md F3).
+    """
     active = panel[panel["n_orders"] > 0]
     last_active = active.groupby("seller_id")["week"].max().rename("last_active_week")
     last_active_tenure = active.groupby("seller_id")["tenure_week"].max().rename("last_active_tenure_week")
@@ -105,6 +117,10 @@ def compute_cessation_candidates(
     out["silence_weeks_observed"] = ((STUDY_END - out["last_active_week"]).dt.days // 7)
     out["cessation_confirmed"] = out["silence_weeks_observed"] >= n_weeks
 
+    out["event_week"] = out["last_active_week"] + pd.Timedelta(weeks=n_weeks)
+    edge_zone_start = STUDY_END - pd.Timedelta(weeks=n_weeks)
+    out["in_edge_zone"] = out["cessation_confirmed"] & (out["event_week"] > edge_zone_start)
+
     # trailing quality at the last active week
     q = panel.set_index(["seller_id", "week"])[["roll_cancel_rate", "roll_late_rate", "roll_elevated"]]
     key = pd.MultiIndex.from_arrays([out.index, out["last_active_week"]])
@@ -112,7 +128,7 @@ def compute_cessation_candidates(
     trailing.index = out.index
     out = out.join(trailing)
 
-    out["event_B"] = out["eligible"] & out["cessation_confirmed"]
+    out["event_B"] = out["eligible"] & out["cessation_confirmed"] & ~out["in_edge_zone"]
     out["event_A"] = out["event_B"] & out["roll_elevated"].fillna(False)
 
     # observation length in weeks (tenure_week at event, or at panel end if censored)
