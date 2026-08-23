@@ -62,7 +62,45 @@ result the brief says should be reported honestly and escalated, not
 patched around. See `PHASE0_FINDINGS.md` for the full comparison and the
 decision this leaves for you.
 
-### F3 — Sibling-module imports break depending on invocation directory
+### F3 — Trimming to STUDY_END fixed the volume-truncation artefact but not a subtler edge artefact
+
+**Assumption going in:** trimming the panel to `STUDY_END = 2018-08-26`
+(D1) — chosen because that's where weekly order volume collapses — would
+be enough to stop the dataset's truncation from being mistaken for
+merchant cessation.
+
+**What actually happened:** it fixed the obvious problem (a seller active
+right up to the true data cutoff no longer looks like it "vanished") but
+not a subtler one. Under pure cessation, an event is only confirmed once
+`STUDY_END - last_active_week >= N` weeks — sellers whose last order lands
+close to `STUDY_END - N` get confirmed with almost no margin, right at the
+edge of what the window can support. Checked directly
+(`src/phase0_calendar_hazard.py`): 22–35% of all confirmed events
+(depending on N) are confirmed in just the final N weeks before
+`STUDY_END`, a span that's only 5–14% of the 86-week window. The weekly
+hazard-rate plot (`figures/phase0_calendar_hazard.png`) shows a visible
+spike in the last few weeks for every N tested, on top of a slower,
+separate upward drift across the whole window that looks more like a
+duration-dependence/composition effect (more of the risk set has aged into
+higher-hazard tenure later in the study, since the seller population grew
+over time) than a real change in platform-wide distress.
+
+I looked for an external explanation (the well-known May 2018 Brazilian
+truckers' strike, which disrupted deliveries nationally) before assuming
+this was purely an artefact — checked monthly late-delivery rate directly.
+It does **not** hold up: May 2018's late rate (8.6%) is unremarkable; the
+actual peak is March 2018 (23.4%), which doesn't line up with the
+cessation-onset over-indexing (which peaks Apr–Jun 2018). No supported
+real-world story here — treating this as a boundary-confirmation artefact
+until shown otherwise.
+
+**Resolution:** not resolved — flagged in `DECISIONS.md` D6 as an open
+question, since fixing it changes either the label (shrinking the usable
+event count further) or the evaluation design (Phase 2's test window is
+exactly where this concentrates), and that's a modelling decision, not an
+implementation one.
+
+### F4 — Sibling-module imports break depending on invocation directory
 
 **What happened:** `src/panel.py`, `src/distress_events.py`, and
 `src/phase0_report.py` import each other as plain sibling modules

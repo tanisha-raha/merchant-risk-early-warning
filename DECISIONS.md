@@ -67,6 +67,46 @@ cadence to depart from. The threshold is a judgement call, not derived from
 theory — **flagged for your sign-off**, along with the candidate-definition
 choice in `PHASE0_FINDINGS.md`.
 
+**Confirmed 2026-08-23, still an arbitrary default:** kept as-is. It
+excludes 1,146 of 3,065 sellers (37.4% of the seller count) but only
+$438,803 of $13,523,076 in-window GMV (3.2%). The floor is doing what it's
+supposed to — dropping a large share of sellers who each carry almost no
+revenue — but the specific numbers 4 and 3 are still not derived from
+anything beyond "median seller places ~7 orders total," and should be
+revisited if Phase 1/2 results look sensitive to it.
+
+### D5 — Carry N=4, N=8, N=12 through to Phase 4 as a robustness check
+
+**Chose:** N=8 weeks of silence is the primary pure-cessation definition
+(665 events, 65.4% censoring — see D3-confirmed numbers and
+`PHASE0_FINDINGS.md`), but N=4 and N=12 are not dropped after Phase 0. All
+three get carried through Phase 1–4 so the headline lead-time/economic
+results can be checked for sensitivity to N, not reported against a single
+arbitrarily-chosen threshold.
+
+**Why:** N was chosen from the empirical gap distribution between a still-
+active seller's consecutive order weeks (90th pct = 5 weeks, 95th = 8,
+99th = 18) as "unusual enough to signal exit," but that's still a judgement
+call on a noisy distribution, not a hard boundary — worth confirming the
+downstream conclusions don't flip on it.
+
+### D6 — Right-edge event confirmation: flagged, not yet mitigated
+
+**Finding:** under pure cessation, 22–35% of confirmed events (depending on
+N) have their confirmation date in just the last N weeks before
+`STUDY_END` — a calendar-time window that is 5–14% of the full 86-week
+study, not 22–35% of it. The weekly hazard rate also visibly spikes in the
+final few weeks before `STUDY_END` for every N tested (see
+`figures/phase0_calendar_hazard.png`, `FAILURES.md` F4). Trimming to
+`STUDY_END` (D1) removed the calendar-volume truncation artefact but did
+not remove a second, subtler one: events confirmed with the bare-minimum
+N-week margin cluster right where that margin is thinnest.
+
+**Not yet resolved** — see the open question raised alongside this file's
+delivery. Whatever is decided must be applied consistently before Phase 2's
+time-based train/test split, since the later (test) window is exactly where
+this artefact concentrates.
+
 ### D4 — "Elevated" quality thresholds: trailing 4-week cancel rate > 0.10 OR late-delivery rate > 0.50
 
 **Chose:** these two cutoffs, applied to a trailing 4-week pooled rate

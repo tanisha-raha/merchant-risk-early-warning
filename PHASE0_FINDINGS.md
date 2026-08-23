@@ -5,7 +5,16 @@ Reproduce with:
 PYTHONPATH=src python3 src/panel.py
 PYTHONPATH=src python3 src/distress_events.py
 PYTHONPATH=src python3 src/phase0_report.py
+PYTHONPATH=src python3 src/phase0_calendar_hazard.py
+PYTHONPATH=src python3 src/phase0_benign_exit.py
 ```
+
+**Status (2026-08-23): approved, with a change and two follow-ups.**
+Event definition is pure cessation (Candidate B), N=8 as primary with N=4
+and N=12 carried through to Phase 4 as a robustness check (DECISIONS.md
+D5). Eligibility floor kept as-is, now with its GMV impact quantified
+(D3). Two follow-up analyses below: a right-edge/censoring-boundary check,
+and a benign-exit quantification for the README limitations section.
 
 ## Panel
 
@@ -89,15 +98,88 @@ what lets you actually test the brief's core hypothesis (trend/acceleration
 beats levels) without the label already containing the answer.
 
 This is a real change from your starting suggestion, not a minor parameter
-tweak, so I'm stopping here rather than picking it for you. Three decisions
-outstanding before Phase 1:
+tweak. **Approved 2026-08-23:** Candidate B, pure cessation, N=8 primary
+with N=4/N=12 carried through as a robustness check on the headline result
+(DECISIONS.md D5). Eligibility floor kept at ≥4 orders / ≥3 active weeks
+(D3) — excludes 1,146 of 3,065 sellers (37.4%) but only 3.2% of in-window
+GMV, so the floor removes mostly long-tail noise, not real exposure.
 
-1. **Event definition:** B (recommended), A as specified (accepting <150
-   events and the circularity caveat), a loosened variant of A (e.g. lower
-   the late-rate threshold, or use relative/trend-based "elevated" instead
-   of an absolute cutoff), or something else.
-2. **N** (silence weeks): 8 is my suggested default; 4 is more sensitive but
-   closer to normal seller cadence gaps; 12 is stricter and loses ~115
-   events versus N=8.
-3. **Eligibility floor** (D3: ≥4 orders, ≥3 active weeks) — reasonable
-   defaults, not derived from anything, open to a different cutoff.
+## Right-edge check: does the truncation artefact really stop at STUDY_END?
+
+Short answer: **no, not fully.** `src/phase0_calendar_hazard.py`,
+`FAILURES.md` F3, `DECISIONS.md` D6.
+
+For each N, share of confirmed events whose confirmation date falls in the
+**final N weeks before STUDY_END** (a window that's only 5–14% of the full
+86-week study):
+
+| N | Total events | Events in final N weeks | Share |
+|---|---:|---:|---:|
+| 4 | 858 | 193 | 22.5% |
+| 8 | 665 | 188 | 28.3% |
+| 12 | 550 | 193 | 35.1% |
+
+All three are hugely over-represented relative to how much calendar time
+that window actually covers. `figures/phase0_calendar_hazard.png` shows why:
+the weekly hazard rate visibly spikes in the last few weeks before
+`STUDY_END` for every N, on top of a slower upward drift across the whole
+window that looks like duration dependence (the risk set skews toward
+longer-tenured sellers later in the study, since the seller population grew
+over 2017–2018) rather than a real change in platform-wide distress.
+
+I checked for a real external cause before calling this an artefact — the
+May 2018 Brazilian truckers' strike is a well-known disruption to this
+dataset's delivery times. It doesn't hold up: May 2018's late-delivery rate
+(8.6%) is unremarkable; the actual peak is March 2018 (23.4%), which
+doesn't line up with the Apr–Jun 2018 window where cessation onsets
+over-index. No supported story — this reads as a boundary-confirmation
+artefact: events near the edge are confirmed with the thinnest possible
+margin (silence_weeks_observed exactly at or just past N), and that margin
+is not evenly distributed across the window.
+
+**Why this matters for Phase 2:** the brief requires a time-based
+train/later-window-test split. The later window is exactly where this
+artefact concentrates, so without a mitigation, the test set's event labels
+are disproportionately drawn from the least trustworthy confirmations —
+this could bias lead-time and calibration results right where they're
+reported as the headline.
+
+**Open question, not resolved unilaterally** (see below).
+
+## Limitation: pure cessation labels benign exits as distress
+
+Quantified in `src/phase0_benign_exit.py`, for Candidate B N=8 (665 events):
+
+1. **Only 11.7% of cessation events (78/665) show elevated cancel/late rate
+   before exiting** (Candidate A's proxy). 88.3% show no such signal — this
+   was already known from F2, restated here as the headline limitation
+   number for the README.
+2. **Trailing review score before exit is lower than baseline, but not
+   dramatically:** mean 3.84 vs. a baseline mean of 4.08 across all active
+   seller-weeks (median 4.25 vs. 4.33). A real, independent (not
+   label-derived) signal that departing sellers skew toward worse recent
+   customer satisfaction — but a 0.24-point gap on a 1–5 scale is modest,
+   not a clean split between "distressed" and "benign" sellers.
+3. **Seasonality is confounded with the right-edge artefact, not clean
+   evidence on its own.** Cessation onsets over-index most in Apr–Jun 2018
+   (up to 2.6× their share of order volume) — but that's exactly the window
+   close enough to `STUDY_END` to be N=8-confirmable at all, so this number
+   can't be cleanly separated from the right-edge finding above. December
+   2017 (the actual holiday peak) shows no elevation (ratio ≈ 1.0), which
+   weighs against a simple "one-shot seasonal seller" story.
+4. **Ceasing sellers are smaller than surviving ones:** median 10 total
+   orders / 8 active weeks vs. 20 orders / 13 active weeks for censored
+   (still-active) sellers. Consistent with either "smaller sellers churn
+   more benignly" or "smaller sellers are more fragile" — this data can't
+   distinguish the two, but it does mean the distress label leans toward
+   the same small/low-volume population the brief's Phase 4 fairness note
+   is worried about over-reserving.
+
+**Net:** pure cessation is a defensible, non-circular, kill-criteria-clearing
+label, but it is a proxy that includes a real population of benign exits —
+plausibly on the order of 80–90% by the (admittedly weak) quality-proxy
+measure, tempered by a real but modest review-score gap suggesting the
+population isn't purely random churn either. This goes in the README
+limitations section verbatim: *the distress event is a proxy for merchant
+default, not default itself, and a majority of labelled events likely
+include sellers who left for reasons unrelated to financial distress.*
