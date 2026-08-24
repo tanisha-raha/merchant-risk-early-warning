@@ -22,13 +22,13 @@ from pathlib import Path
 
 import pandas as pd
 
-from panel import STUDY_END, STUDY_START, WEEK_FREQ, build_panel, load_raw
 from distress_events import (
     TRAILING_WINDOW,
     add_rolling_rates,
     compute_cessation_candidates,
     compute_eligibility,
 )
+from panel import STUDY_END, STUDY_START, WEEK_FREQ, build_panel
 
 N = 8  # the adopted primary definition
 
@@ -105,17 +105,17 @@ def main() -> None:
     print("3. Seasonality: month of last order, cessation share vs. order-volume share")
     print(seasonality.to_string())
     top_months = seasonality.sort_values("cessation_vs_volume_ratio", ascending=False).head(3)
-    print(f"\n   months where cessation onsets over-index most vs. their share of order volume:")
+    print("\n   months where cessation onsets over-index most vs. their share of order volume:")
     print(f"   {list(top_months.index.astype(str))}\n")
 
     # --- 4. size/tenure of ceasing vs. surviving sellers ----------------------
     print("4. Seller size (total orders) and tenure at risk-set entry: events vs. censored")
     for label, df in [("events (ceased)", events), ("censored (still active/right-censored)", survivors)]:
         print(f"   {label}: n={len(df)}")
-        print(f"     total_orders  p25/median/p75 = "
-              f"{df['total_orders'].quantile(.25):.0f} / {df['total_orders'].median():.0f} / {df['total_orders'].quantile(.75):.0f}")
-        print(f"     active_weeks  p25/median/p75 = "
-              f"{df['active_weeks'].quantile(.25):.0f} / {df['active_weeks'].median():.0f} / {df['active_weeks'].quantile(.75):.0f}")
+        orders_q = df["total_orders"].quantile([.25, .5, .75])
+        weeks_q = df["active_weeks"].quantile([.25, .5, .75])
+        print(f"     total_orders  p25/median/p75 = {orders_q[.25]:.0f} / {orders_q[.5]:.0f} / {orders_q[.75]:.0f}")
+        print(f"     active_weeks  p25/median/p75 = {weeks_q[.25]:.0f} / {weeks_q[.5]:.0f} / {weeks_q[.75]:.0f}")
 
 
 if __name__ == "__main__":

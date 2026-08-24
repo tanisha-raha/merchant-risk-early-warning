@@ -29,13 +29,13 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from panel import STUDY_END, build_panel
 from distress_events import (
     CESSATION_N_CANDIDATES,
     add_rolling_rates,
     compute_cessation_candidates,
     compute_eligibility,
 )
+from panel import STUDY_END, build_panel
 
 FIG_DIR = Path("figures")
 

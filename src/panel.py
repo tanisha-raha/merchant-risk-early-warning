@@ -169,12 +169,31 @@ def build_seller_week_panel(weekly: pd.DataFrame) -> pd.DataFrame:
     return panel
 
 
-def build_panel(raw_dir: Path) -> pd.DataFrame:
-    raw = load_raw(raw_dir)
+def build_panel_from_raw(raw: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    """Core label-panel logic, taking already-loaded raw tables. Split out
+    from build_panel() so callers (notably features.py and the leakage
+    tests) can pass in-memory, possibly-truncated raw data instead of
+    always reading from disk.
+    """
     order_seller = build_order_seller_frame(raw)
     weekly = build_weekly_aggregates(order_seller)
     panel = build_seller_week_panel(weekly)
     return panel
+
+
+def build_panel(raw_dir: Path) -> pd.DataFrame:
+    return build_panel_from_raw(load_raw(raw_dir))
+
+
+def seller_week_grid(raw: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    """The (seller_id, week, tenure_week) grid only -- no label/outcome
+    columns. This is what features.py builds on: it's derived purely from
+    *when* a seller's first order happened and the fixed study window, both
+    as-of-safe, so it's safe to share between the label pipeline and the
+    feature pipeline without coupling features.py to panel.py's
+    final-status label columns.
+    """
+    return build_panel_from_raw(raw)[["seller_id", "week", "tenure_week"]]
 
 
 def main() -> None:

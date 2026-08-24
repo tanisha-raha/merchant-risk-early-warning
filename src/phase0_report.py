@@ -15,7 +15,6 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from panel import STUDY_END, STUDY_START, WEEK_FREQ, build_panel, load_raw
 from distress_events import (
     CESSATION_N_CANDIDATES,
     add_rolling_rates,
@@ -23,6 +22,7 @@ from distress_events import (
     compute_collapse_candidate,
     compute_eligibility,
 )
+from panel import STUDY_END, STUDY_START, WEEK_FREQ, build_panel, load_raw
 
 FIG_DIR = Path("figures")
 
@@ -90,7 +90,11 @@ def plot_definition_comparison(panel: pd.DataFrame) -> None:
 
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
 
-    labels = [f"A: cessation(N={n})\n+ elevated quality", f"B: cessation(N={n})\nonly", "C: quality collapse\n(M=3), no cessation"]
+    labels = [
+        f"A: cessation(N={n})\n+ elevated quality",
+        f"B: cessation(N={n})\nonly",
+        "C: quality collapse\n(M=3), no cessation",
+    ]
     event_counts = [
         int(elig_cess["event_A"].sum()),
         int(elig_cess["event_B"].sum()),
