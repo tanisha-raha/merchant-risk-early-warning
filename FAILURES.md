@@ -118,3 +118,50 @@ into `run.sh` once it exists. Flagging rather than quietly fixing with a
 sys.path hack, since the cleaner long-term fix (turn `src` into a proper
 package, use `python -m src.<script>`) is a Phase 1 packaging decision, not
 a Phase 0 one.
+
+**Partial fix, Phase 1:** added `tests/conftest.py` (puts `src/` on
+`sys.path` once, for the whole test session) so `pytest` now works from the
+repo root with no `PYTHONPATH` needed. Running a script directly (e.g.
+`python3 src/features.py`) still needs `PYTHONPATH=src` — that's what
+`run.sh` will use. The `python -m src.<script>` packaging cleanup is still
+not done; still a nice-to-have, not a blocker.
+
+## Phase 1
+
+### F5 — Test's own cutoff timestamp clipped same-day orders (test bug, not a features.py bug)
+
+**What happened:** `tests/test_no_lookahead.py`'s first draft set
+`CUTOFF = pd.Timestamp("2018-03-04")`, which defaults to midnight. The
+"hide the future" test compares feature values for weeks ≤ cutoff between
+a full run and a run with raw data truncated at cutoff — but 236 orders
+purchased later on 2018-03-04 itself (after 00:00:00) got wrongly excluded
+from the truncated run's raw data, even though they belong to the same
+`W-SUN` week as orders purchased earlier that day. This showed up as 8
+feature columns (`order_volume_*`, `aov_*`, both concentration levels)
+"changing when the future was hidden" for that boundary week — which
+looked exactly like a leakage bug at first.
+
+**Resolution:** confirmed it was the test, not the code, by checking the
+raw data directly (236 same-day orders after midnight) before touching
+features.py. Fixed by setting `CUTOFF` to the end of that week
+(`23:59:59.999999`), not its start. Recorded here because "the test itself
+had a bug" is exactly the kind of thing that's tempting to fix silently and
+move on — worth showing that the first failure wasn't real leakage before
+the second one (F6) turned out to be.
+
+### F6 — Review data-quality bug the leakage test caught for real
+
+See `DECISIONS.md` D9. After fixing F5, one genuine mismatch remained:
+`review_score_level` for one seller-week differed between the full and
+future-hidden runs. Traced to a raw data artefact — 74 of 99,224 review
+rows are dated before their own order's purchase timestamp (a review
+literally predating the purchase it's reviewing), almost certainly a
+reused `order_id` in the reviews table. One such row attached a January
+2018 review date to an order actually purchased in April 2018; hiding
+April's data correctly made the review disappear from the truncated run,
+while the full run — unaware anything was wrong — kept counting it against
+January. Fixed by dropping any review row where
+`review_creation_date < order_purchase_timestamp` in
+`build_review_weekly`. This is the test doing exactly its job: catching a
+real, if narrow (0.075% of rows), source of leakage-shaped distortion
+before it reached a model.

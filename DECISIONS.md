@@ -186,3 +186,41 @@ seller-weeks that straddle the boundary get assigned, how base-rate drift
 between train/test gets reported (required by the brief), or whether 26
 weeks is still right once Phase 1 features are in place. Phase 2 owns
 finalising the split.
+
+## Phase 1
+
+### D8 — Feature attribution: event week, not purchase week; level/trend/acceleration convention
+
+**Chose:** every feature is attributed to the week its underlying fact
+became *knowable* (order → ship → deliver → review each get their own
+attribution week; cancellation is attributed to the order's own
+`order_estimated_delivery_date` week, the best available proxy given the
+raw data has no cancellation timestamp), not to the order's purchase week.
+`level(W)` = trailing-4-week pooled ratio; `trend(W)` = OLS slope of the
+raw (unsmoothed) weekly value over the same 4 weeks; `acceleration(W)` =
+`trend(W) - trend(W-1)`. Full rationale and the attribution table are in
+`FEATURES.md` rather than duplicated here, since that file is the
+per-column spec.
+
+**Why logged as a decision, not just documentation:** this determines what
+"leakage-free" even means for this project, and it's an interpretation of
+the brief's words ("level, trend, acceleration... as-of the week in
+question"), not something derivable from the data alone. Implemented
+without a pre-approval question — flagged here for review rather than
+gated on it, consistent with how Phase 0's D2/D4 windowing conventions were
+handled. Say so if any part of it should change.
+
+### D9 — Review rows dated before their own order's purchase are dropped
+
+**Found by `tests/test_no_lookahead.py`** (written before features.py was
+finished, per your instruction): 74 of 99,224 raw review rows (0.075%) have
+`review_creation_date` earlier than their own order's
+`order_purchase_timestamp` — a data-quality artefact (almost certainly a
+reused/duplicated `order_id` in the reviews table), not a real event. One
+such row caused the leakage test to fail during development: a review
+dated January 2018 attached to an order actually purchased in April 2018,
+which the test correctly flagged as a January feature value that
+disappeared when April's data was hidden.
+
+**Chose:** drop any review row where `review_creation_date <
+order_purchase_timestamp`. Full writeup in `FAILURES.md`.
