@@ -1,0 +1,41 @@
+# Phase 3 cost model parameters. Every assumed number lives here, not
+# hardcoded in src/policy.py -- per the brief. See DECISIONS.md D15 for
+# why Phase 3's scope is narrower than the brief's original design (a
+# reserve-percentage surface over hazard x merchant size), and D16 for
+# the sweep result these parameters produce.
+#
+# Currency: Brazilian Real (R$) -- the actual currency of the underlying
+# Olist transaction data. Not converted to Indian Rupees: the eventual
+# real-world context in the brief is an Indian payments aggregator, but
+# this demonstration runs on Brazilian e-commerce data (a limitation
+# BRIEF.md's README requirements already ask to state plainly). Silently
+# relabeling BRL amounts as INR without an actual FX conversion would be
+# more misleading than being explicit about the unit.
+#
+# None of these values are tuned to make either policy win -- picked once,
+# documented, and the sweep run against them as-is, per instruction.
+
+reserve_pct: 0.15
+# Share of a flagged merchant's settlement held back once flagged, by
+# either policy (the model flagging early, or the N=8 rule at
+# confirmation). Typical rolling-reserve programs run 10-30%; 0.15 is a
+# plausible mid-point, not any specific aggregator's real policy.
+# Multiplies both the benefit and cost terms below, so its exact value
+# scales the R$ magnitude of the result but does not change which policy
+# wins (that's set by the ratio of the other two parameters).
+
+working_capital_cost_weekly_rate: 0.0035
+# Weekly opportunity/working-capital cost to a HEALTHY merchant of having
+# reserve_pct of one week's settlement held back unnecessarily (a false
+# alarm). Derived from an assumed ~18% annualised cost of capital, /52
+# weeks -- a plausible small-e-commerce-seller rate, not measured from
+# this dataset (Olist has no financing/capital-cost data).
+
+benefit_capture_rate: 1.0
+# Of the EXTRA reserve accumulated during an accelerated detection window
+# (model flags a merchant before the N=8 rule would have), the fraction
+# assumed to actually offset the eventual refund/chargeback shortfall
+# when that merchant fails. 1.0 = every extra real of reserve is assumed
+# fully recoverable against the loss -- an upper bound on the model's
+# benefit, chosen deliberately in the model's favour, so that a negative
+# result is not an artefact of an unfairly conservative assumption.

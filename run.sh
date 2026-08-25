@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reproduces every number reported so far (Phase 0-2). Extended as later
+# Reproduces every number reported so far (Phase 0-3). Extended as later
 # phases land -- see README.md (once written) for the final, authoritative
 # version of this file.
 set -euo pipefail
@@ -34,5 +34,8 @@ python3 src/phase2_acceleration_vs_rule.py
 
 echo "=== Phase 2: active-only-rows core-hypothesis check (DECISIONS.md D14 sec.3) ==="
 python3 src/phase2_active_only_ablation.py
+
+echo "=== Phase 3: false-alarm-rate sweep vs. the N=8 rule (DECISIONS.md D15-D16) ==="
+python3 src/policy.py
 
 echo "done."

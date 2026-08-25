@@ -536,3 +536,87 @@ would confirm it anyway, for a minority of cases, at a cost in false
 alarms. That is a different, smaller claim than the project's premise, and
 the README needs to say so if Phase 3/4 proceed on the current feature
 set and label. Not decided here.
+
+## Phase 3
+
+### D15 — Phase 3 rescoped: acceleration-vs-rule, not a reserve-sizing surface
+
+**Chose:** given D13/D14, the brief's original Phase 3 design (a reserve
+percentage sized as a function of hazard and merchant size) is not built.
+It presumes the model carries continuous, multi-week hazard information
+worth turning into a nuanced sizing surface — D14 found that past ~2
+weeks, it doesn't. Built instead: a sweep of the row-level false-alarm
+rate from 1% to 10%, reporting expected cost per 1,000 merchant-weeks of
+a model-triggered early-reserve policy against the N=8 rule as the
+zero-point baseline (the rule has no false alarms by construction — the
+label *is* its output — so its cost is 0 and its acceleration is 0; the
+sweep is measured as a delta from that). `src/policy.py`,
+`config/costs.yaml`.
+
+**Currency note:** figures are in R$ (Brazilian Real), the actual
+currency of the Olist transaction data, not converted to Rupees — see the
+comment at the top of `config/costs.yaml`. Flagged, not silently decided
+either way; happy to add an explicit FX-converted view if that's actually
+wanted for the write-up.
+
+### D16 — Sweep result: the model beats the rule at every false-alarm rate tested, and the win grows with FAR
+
+| FAR | events accelerated | benefit (R$) | cost (R$) | net Δcost / 1,000 merchant-weeks (R$) | seller-level FAR |
+|---:|---:|---:|---:|---:|---:|
+| 1% | 10/237 | 300 | 17 | **-8.12** | 6.9% |
+| 3% | 37/237 | 867 | 41 | **-23.71** | 13.0% |
+| 5% | 71/237 | 2,656 | 67 | **-74.29** | 17.1% |
+| 7% | 104/237 | 3,830 | 88 | **-107.35** | 22.7% |
+| 10% | 139/237 | 5,081 | 123 | **-142.25** | 32.0% |
+
+(Full 10-point sweep: `figures/phase3_far_sweep.csv` /
+`figures/phase3_far_sweep.png`.) Negative = the model policy costs less
+than the rule — **it wins at every FAR tested, and the margin widens
+monotonically as FAR increases; it never breaks even in the model's
+favour reversing, let alone loses, across the swept range.**
+
+**This result rides almost entirely on one assumption ratio, and that
+needs to be said as plainly as the result itself.** The right panel of
+`figures/phase3_far_sweep.png` shows why: benefit grows roughly 40x
+faster than cost across the sweep. That's not really a discovery about
+the model — it's built into the two cost parameters. `benefit_capture_rate
+= 1.0` values every real of accelerated reserve as a full real of avoided
+loss; `working_capital_cost_weekly_rate = 0.0035` charges a healthy
+flagged merchant less than half a percent of their reserved capital, per
+week. Any policy that produces *some* true accelerations at all will look
+good under that ratio, almost regardless of how many false alarms come
+with it. Per instruction these parameters were **not tuned to reach this
+result** — picked once, up front, and documented in `config/costs.yaml`
+before the sweep ran — but the result's robustness is still only as good
+as that ratio's realism, which is asserted, not measured (Olist has no
+financing-cost data). **A materially higher `working_capital_cost_weekly_rate`
+or lower `benefit_capture_rate` could flip this — that sensitivity is
+exactly what Phase 4's tornado plot is supposed to establish, not assumed
+away here.**
+
+**Two things worth carrying into Phase 4, checked here rather than
+assumed:**
+- **The false-alarm burden is sustained, not a blip.** At FAR=10%, a
+  flagged healthy seller is flagged for a mean of 7.0 weeks (median 5.0)
+  out of a mean 22.4 observed test-period weeks — roughly a third of
+  their test-period existence. The per-week cost formula already prices
+  this correctly (each flagged week is charged), but "32% seller-level
+  false-alarm rate" understates how concentrated the burden is on the
+  sellers it does hit.
+- **Checked whether flagged healthy sellers skew toward small/new
+  merchants (the brief's Phase 4 fairness concern) — they don't, on
+  tenure at least.** Flagged rows have *higher* tenure than the overall
+  censored population (mean 55.1 vs. 35.9 weeks, median 56 vs. 34) at
+  FAR=10%. This is one dimension (tenure), not the full fairness
+  question (size/GMV, category), and not a substitute for Phase 4's
+  actual slice analysis — but it's evidence against, not for, the
+  concern that this specific policy would concentrate its false-alarm
+  cost on the most vulnerable merchants. Worth re-checking properly, not
+  assumed to generalise.
+
+**Bottom line, stated as instructed regardless of which way it went: the
+model-based policy beats the naive N=8 rule at every false-alarm rate
+tested, with the win growing as the rate loosens — but this conclusion
+depends heavily on one under-measured cost-parameter ratio, and Phase 4's
+sensitivity analysis needs to establish how much room that ratio has to
+move before the answer changes.**
