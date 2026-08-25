@@ -51,6 +51,9 @@ python3 src/phase4_slices.py
 echo "=== Phase 4: isotonic-calibrated FAR sweep (DECISIONS.md D21) ==="
 python3 src/phase4_calibrated_sweep.py
 
+echo "=== Phase 4: precision/recall at calibrated FAR thresholds (DECISIONS.md D23) ==="
+python3 src/phase4_precision_recall.py
+
 echo "=== Phase 4: README presentation figures (DECISIONS.md D22) ==="
 python3 src/phase4_presentation_figures.py
 

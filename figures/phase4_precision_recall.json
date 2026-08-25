@@ -1,0 +1,32 @@
+[
+  {
+    "far": 0.01,
+    "threshold": 0.2,
+    "n_flagged": 874,
+    "true_events_caught": 31,
+    "false_positives": 843,
+    "missed_events": 206,
+    "precision": 0.03546910755148741,
+    "recall": 0.1308016877637131
+  },
+  {
+    "far": 0.05,
+    "threshold": 0.0545454545454545,
+    "n_flagged": 2212,
+    "true_events_caught": 92,
+    "false_positives": 2120,
+    "missed_events": 145,
+    "precision": 0.04159132007233273,
+    "recall": 0.3881856540084388
+  },
+  {
+    "far": 0.1,
+    "threshold": 0.0403885480572597,
+    "n_flagged": 4505,
+    "true_events_caught": 166,
+    "false_positives": 4339,
+    "missed_events": 71,
+    "precision": 0.036847946725860156,
+    "recall": 0.70042194092827
+  }
+]

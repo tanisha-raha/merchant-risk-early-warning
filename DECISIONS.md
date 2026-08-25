@@ -904,3 +904,30 @@ explicit statement that every economic figure in Sections 4-5 is
 simulated from assumed parameters against realised outcomes, not a
 record of money that moved. Both were prompted by direct request, not
 discovered independently this round.
+
+### D23 — Precision and recall, stated directly, at the calibrated FAR-sweep thresholds
+
+`src/phase4_precision_recall.py`. The evaluation track asks for measured
+precision/recall on a held-out test set by name; this project had AUC,
+calibration, lead time, and cost, but never stated these two directly.
+Computed on the calibrated model (same isotonic calibrator as D21), at
+the exact thresholds D21 already established for 1%/5%/10% FAR (reused
+from `figures/phase4_calibrated_sweep.csv`, not recomputed), against the
+full test-period row population and the original at-event-week label:
+
+| FAR | threshold | flagged | TP | FP | FN | precision | recall |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1% | 0.200000 | 874 | 31 | 843 | 206 | 3.5% | 13.1% |
+| 5% | 0.054545 | 2,212 | 92 | 2,120 | 145 | 4.2% | 38.8% |
+| 10% | 0.040389 | 4,505 | 166 | 4,339 | 71 | 3.7% | 70.0% |
+
+Test window: 34,853 rows, 237 actual events (0.68% positive rate).
+Precision is poor in absolute terms (3.5-4.2%) — expected given the base
+rate, reported as such, not reframed. Recall rises with FAR (13%→39%→70%)
+as expected. **The low precision does not contradict D16's economic
+result — it's exactly why D16's cost model matters rather than being
+decoration: the policy wins economically not because it's precise, but
+because the cost-model ratio (D17) makes each rare true positive worth
+far more than each common false positive costs.** Added to the README
+(Section 5, alongside the calibrated-model discussion) rather than left
+implicit across AUC/calibration/cost sections separately.

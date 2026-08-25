@@ -13,8 +13,16 @@ turned out to matter (D14 §3, D21).
 
 ## 1. The problem
 
+This project's loss category is merchant default — the same family as
+fraud, chargebacks, and returns, approached from the other side of the
+ledger: it is what happens when a merchant collects payment and then
+fails to deliver. The refund and chargeback liability that follows does
+not stay with the merchant; it lands on the aggregator holding the
+reserve, which is the exposure this project is trying to price and catch
+earlier.
+
 A payment aggregator settles money to merchants before delivery is
-confirmed, carrying the credit exposure if the merchant then fails to
+confirmed, carrying that credit exposure if the merchant then fails to
 deliver, floods refunds, or simply disappears; the standard defence — a
 rolling reserve held back from settlement — is currently sized by crude
 static rules (flat percentage, category, tenure) with no live signal.
@@ -209,6 +217,35 @@ with caution** — it depends on where quantile cutoffs happen to land
 relative to those tie plateaus, a more sensitive dependency on
 implementation detail than the headline number suggests. A smoother
 calibrator (Platt scaling) is the natural follow-up, not attempted here.
+
+**Precision and recall, calibrated model, held-out test window** — stated
+directly, not only implied through AUC, calibration, lead time, and cost
+(`src/phase4_precision_recall.py`, thresholds reused exactly from D21):
+
+| FAR | threshold | flagged | true events caught | false positives | precision | recall |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1% | 0.2000 | 874 | 31 | 843 | 3.5% | 13.1% |
+| 5% | 0.0545 | 2,212 | 92 | 2,120 | 4.2% | 38.8% |
+| 10% | 0.0404 | 4,505 | 166 | 4,339 | 3.7% | 70.0% |
+
+**Precision is poor in absolute terms — 3.5–4.2%, meaning roughly one in
+25 flags is a real cessation — and that is reported plainly, not dressed
+up.** It reflects the test window's own base rate (237 of 34,853 rows,
+0.68%): even a 4x–6x lift over flagging at random still looks low as a
+raw percentage when the event itself is this rare. **This low precision
+is priced explicitly in the cost model, which is why the policy still
+beats the naive rule despite it (Section 4):** every flagged healthy row
+is charged its real working-capital cost regardless of how rare true
+positives are, and the FAR sweep still comes out ahead because each of
+the few true positives is worth far more — an accelerated reserve against
+an actual failure — than each false positive costs. The economics do not
+depend on precision being good; they depend on the ratio in
+`config/costs.yaml`, audited separately in Section 4's sensitivity
+analysis. Recall climbs with FAR as expected (13%→39%→70%) — at a loose
+10% false-alarm rate the model does eventually flag most true cessations
+somewhere in their test-period history, which is a different and weaker
+claim than flagging them *early* (Section 3's finding stands: most of
+that flagging happens once the seller has already gone quiet, not before).
 
 ## 6. The ablation — the brief's core hypothesis, tested directly
 
