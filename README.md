@@ -309,6 +309,39 @@ is for most sellers). The finding is specifically that trend and
 acceleration, layered on top of that levels signal, add nothing this
 project could measure.
 
+**Capacity check, not a model upgrade: does a nonlinear learner find what
+the linear model missed on the same inputs?** One gradient-boosted model
+(`HistGradientBoostingClassifier`, default hyperparameters, `random_state=0`
+only — no tuning, no class weighting, matching the logistic regression's
+own lack of either), same 37 features, same split, same two evaluations
+(`DECISIONS.md` D24, `src/phase4_gbm_capacity_check.py`). Not promoted to
+primary regardless of the result.
+
+| evaluation | logistic | GBM |
+|---|---:|---:|
+| pooled active-only test AUC | 0.678 | 0.700 |
+| pooled active-only train AUC (train/test gap) | 0.714 (3.6 pts) | 0.953 (**25 pts**) |
+| advance-warning horizon, k=1/2/4/8 | 0.584 / 0.586 / 0.534 / 0.555 | 0.561 / 0.569 / 0.540 / 0.523 |
+
+The pooled number looks like a 2.2-point win for the GBM — **it isn't
+read as one.** A 25-point train/test gap against the logistic
+regression's 3.6 means the GBM converted most of its extra capacity into
+overfitting the training rows, not into generalising signal, and a
+2.2-AUC-point edge measured on only 363 test-window positive rows is well
+within what sampling noise on a set that size produces on its own. At the
+horizons that actually matter — advance warning, still trading — the GBM
+is at or below the linear model at three of four. **The GBM is slightly
+better pooled and slightly worse at the advance-warning horizons, which
+is the same finding restated, not a new one: it fits the quiet-detection
+signal (Section 3) somewhat harder than the linear model does, and that
+signal was never early warning to begin with.** Conclusion: the ceiling
+here is in the data and features, not in the linearity of the model class.
+
+Limitation stated plainly: both models ran on default hyperparameters
+with no early-stopping tuning either way — the right comparison for this
+specific question, but not the strongest possible test of what a
+properly tuned nonlinear model could do (Section 8).
+
 ## 7. Failure slices and the fairness disparity
 
 Extended Section 4's economics to four slice dimensions — tenure at test
@@ -370,6 +403,13 @@ rather than Olist's e-commerce proxy:
   follow-up to Section 5's isotonic check, whose step-function shape
   makes the exact magnitude of the calibrated economic result more
   sensitive to implementation detail than is comfortable.
+- **Run a properly tuned gradient-boosted comparison** — Section 6's GBM
+  capacity check deliberately used default hyperparameters with no
+  cross-validation or early-stopping tuning on either model, the right
+  comparison for "does an untuned nonlinear learner find missed signal,"
+  but not the strongest possible test of what a well-tuned nonlinear
+  model could do on these features. Logistic regression stays primary
+  either way, per this project's scope.
 - **Investigate why `auto` and `electronics` lose economically** (Section
   7) — category-specific order cadence, AOV structure, or delivery
   patterns are the natural first hypotheses, untested here.

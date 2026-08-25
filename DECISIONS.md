@@ -947,3 +947,62 @@ continuum — those two blocks have batch precision 4.56% and 3.23%
 respectively, confirmed directly, which is what coarsens a mild
 underlying non-monotonicity into the more visible dip reported in the
 table. Footnoted in the README rather than left to look like an error.
+
+### D24 — Capacity check: a single gradient-boosted model, not a model upgrade
+
+`src/phase4_gbm_capacity_check.py`. Framed and run as a capacity check,
+not a candidate replacement: does a more flexible learner extract signal
+the linear model missed on the *same* 37 features, *same* row-level
+split, *same* two evaluations already used for the ablation (D18) and the
+honest advance-warning horizon (D14 §1)? One `HistGradientBoostingClassifier`,
+default hyperparameters except `random_state=0` — no tuning, no class
+weighting (the logistic regression got neither either, so this stays an
+apples-to-apples "same treatment" comparison, not a tuned model against
+an untuned one). Not promoted to primary regardless of the result, per
+instruction.
+
+**Pooled active-only task (mirrors D18):** GBM test AUC 0.700 vs.
+logistic 0.678 — reported with the number that actually explains it, not
+asserted as a clean win: GBM train AUC is 0.953, a 25-point train/test
+gap, against the logistic regression's 3.6-point gap (0.714→0.678). The
+GBM converts its extra capacity mostly into overfit, not signal, and a
+2.2-AUC-point edge measured against only 363 test-window positive rows is
+within what sampling noise on a set that size would produce on its own.
+**Not read as a meaningful edge.**
+
+**Honest advance-warning horizon (mirrors D14 §1, last-order-anchored):**
+the test that matters more, and the GBM does not beat the linear model
+there — at or below it at three of four horizons:
+
+| k (weeks before last order) | logistic | GBM |
+|---:|---:|---:|
+| 1 | 0.584 | 0.561 |
+| 2 | 0.586 | 0.569 |
+| 4 | 0.534 | 0.540 |
+| 8 | 0.555 | 0.523 |
+
+**Pattern worth naming directly:** the GBM is slightly better pooled and
+slightly worse at the advance-warning horizons — consistent with it
+fitting the *quiet-detection* signal (D13's "seller has already gone
+quiet" mechanism) somewhat harder than the logistic regression does,
+which is not early warning; D13/D14 already established that mechanism
+is what drives most of the pooled number for either model class. A
+learner that's marginally better at recognising silence and marginally
+worse before it begins is not evidence of missed early-warning signal —
+it's the same finding restated in a different model.
+
+**Conclusion: the ceiling is in the data and features, not the model
+class.** A nonlinear, interaction-capturing learner given the identical
+inputs does not clear the ~0.68-0.70 pooled ceiling or the ~0.52-0.59
+advance-warning ceiling by a margin that survives scrutiny. This
+strengthens D18's negative result rather than reopening it.
+
+**Limitation, stated plainly rather than left implicit:** both models
+were run on default hyperparameters, with no early-stopping tuning for
+either. That's the right comparison for *this* question (an untuned GBM
+against an untuned logistic regression), but it is not the strongest
+possible test of "could a better-tuned nonlinear model do better" — a
+properly cross-validated, early-stopped, hyperparameter-searched GBM is
+what would be built next if this result needed to bear more weight than
+a capacity check. Not done here; logistic regression remains the primary
+model throughout this project regardless.

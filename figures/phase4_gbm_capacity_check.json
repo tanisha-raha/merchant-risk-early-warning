@@ -1,0 +1,52 @@
+{
+  "active_only_task": {
+    "gbm_train_auc": 0.9526501035718004,
+    "gbm_test_auc": 0.7003322800889547,
+    "logistic_train_auc": 0.714,
+    "logistic_test_auc": 0.678
+  },
+  "standard_task_at_event_week": {
+    "gbm_train_auc": 0.9799577250405529,
+    "gbm_test_auc": 0.9236710616002552
+  },
+  "last_order_anchored_curve_gbm": {
+    "1": {
+      "n_events_available": 237,
+      "n_events_scored": 133,
+      "n_negative_rows": 32370,
+      "auc": 0.561187723711503,
+      "mean_positive_score": 0.013966702538725766,
+      "mean_negative_score": 0.006799727892022703
+    },
+    "2": {
+      "n_events_available": 237,
+      "n_events_scored": 120,
+      "n_negative_rows": 32370,
+      "auc": 0.5687310781587891,
+      "mean_positive_score": 0.010142532794100722,
+      "mean_negative_score": 0.006799727892022703
+    },
+    "4": {
+      "n_events_available": 237,
+      "n_events_scored": 97,
+      "n_negative_rows": 32370,
+      "auc": 0.5398526699979938,
+      "mean_positive_score": 0.012494805512243695,
+      "mean_negative_score": 0.006799727892022703
+    },
+    "8": {
+      "n_events_available": 237,
+      "n_events_scored": 39,
+      "n_negative_rows": 32370,
+      "auc": 0.5234820940567002,
+      "mean_positive_score": 0.00850100276745841,
+      "mean_negative_score": 0.006799727892022703
+    }
+  },
+  "last_order_anchored_curve_logistic_reference": {
+    "1": 0.584,
+    "2": 0.586,
+    "4": 0.534,
+    "8": 0.555
+  }
+}
