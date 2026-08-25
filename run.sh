@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# Reproduces every number reported so far (Phase 0-4). Extended as later
-# phases land -- see README.md (once written) for the final, authoritative
-# version of this file.
+# Reproduces every number in README.md (Phase 0-4).
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -52,5 +50,8 @@ python3 src/phase4_slices.py
 
 echo "=== Phase 4: isotonic-calibrated FAR sweep (DECISIONS.md D21) ==="
 python3 src/phase4_calibrated_sweep.py
+
+echo "=== Phase 4: README presentation figures (DECISIONS.md D22) ==="
+python3 src/phase4_presentation_figures.py
 
 echo "done."

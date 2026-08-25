@@ -47,16 +47,33 @@ number in this document is a number about *predicting cessation*, not
 about predicting default; the gap between those two things is real and
 unmeasured here.
 
-**The cost-model parameters are assumptions, not measurements.**
-`config/costs.yaml` holds three numbers — the reserve percentage, the
-weekly working-capital cost of holding it, and the fraction of
+**The cost-model parameters are assumptions, not measurements — every
+economic figure in Sections 4 and 5 is a simulation, not an observed
+loss.** `config/costs.yaml` holds three numbers — the reserve percentage,
+the weekly working-capital cost of holding it, and the fraction of
 accelerated reserve that actually offsets a loss — and none of them come
 from data. Olist has no financing-cost, reserve-program, or write-off
-data to measure them against. They were picked once, documented, and
-never tuned to reach a particular answer (`DECISIONS.md` D16), and
-Section 4 below shows the economic conclusion is robust to wide,
-deliberately generous ranges around them — but "robust to a wide range of
-guesses" is not the same claim as "measured."
+data to measure them against. No real reserve was ever held, no real
+merchant ever paid a real working-capital cost, and no real shortfall was
+ever avoided anywhere in this document — every R$ figure below is what
+*would* happen under an assumed cost structure applied to *realised*
+cessation outcomes, not a record of money that actually moved. They were
+picked once, documented, and never tuned to reach a particular answer
+(`DECISIONS.md` D16), and Section 4 shows the economic conclusion is
+robust to wide, deliberately generous ranges around them — but "robust to
+a wide range of guesses" is not the same claim as "measured."
+
+**Marketplace sellers are not payment-aggregator merchants.** Olist
+sellers list goods on a marketplace and are evaluated on delivery and
+customer satisfaction; a payment aggregator's merchants have a fundamentally
+different relationship with the platform — money movement and settlement,
+not fulfilment — and correspondingly different failure modes (fraud,
+insolvency, chargeback floods) and different available data (transaction-
+and settlement-level signals, not order and delivery telemetry). This
+project's entire premise — that payment telemetry predicts merchant
+failure — is tested here on a proxy business relationship, not the
+target one. That gap sits underneath every other limitation in this
+section, not just the dataset's currency and label.
 
 **This is Brazilian e-commerce data (Olist, 2017–2018), in Brazilian
 Real, evaluated for a hypothesis about Indian payments.** Every R$ figure
@@ -70,10 +87,25 @@ this project cannot check.
 
 ## 3. The headline lead-time result
 
+![Lead-time waterfall: three stages, apparent result to honest result](figures/readme_lead_time_waterfall.png)
+
+The figure above is the whole argument of this section in one image.
+**Stage 1** is what a naive read of Section 6's model produces — AUC
+0.89–0.97, which looks like strong prediction. **Stage 2** audits that
+number by lead time and it collapses to exactly chance (0.499) by 8 weeks
+before confirmation — because that k=8 point lands precisely on the
+seller's last active week, where soon-to-fail sellers actually scored
+*below* still-healthy ones (mean predicted risk 0.0001 vs. 0.0099).
+**Stage 3** corrects a flaw in stage 2's own measurement — its k was
+counted from confirmation, not from the seller's actual last order, so
+every point except k=8 was already inside the silence period, not before
+it. Re-anchored to genuinely precede the last order, the result holds at
+0.53–0.59 across every horizon tested: still near chance. Full detail
+below.
+
 **There is no evidence of genuine multi-week advance warning.** Checked
 directly and reported as a negative result, not softened
-(`DECISIONS.md` D13, D14 §1, `figures/phase4_headline_lead_time.png`
-right panel): scoring each confirmed cessation at 1, 2, 4, and 8 weeks
+(`DECISIONS.md` D13, D14 §1): scoring each confirmed cessation at 1, 2, 4, and 8 weeks
 *before the seller's actual last order* — i.e. while still genuinely
 trading, the fair test of "did we see it coming" — the model's
 discrimination sits at 0.53–0.59 AUC at every horizon. Chance is 0.50.
@@ -86,15 +118,16 @@ eight-week silence rule would. The honest headline sentence, replacing
 "predicts distress N weeks in advance": **at a 5% false-alarm rate, the
 model beats the naive eight-week silence rule for 30% of cessations, by a
 median of 2.0 weeks — and provides no benefit at all over the naive rule
-for the other 65%** (`DECISIONS.md` D14 §2, D19;
-`figures/phase4_headline_lead_time.png` left panel). The lead-time
+for the other 65%** (`DECISIONS.md` D14 §2, D19). The lead-time
 distribution is right-skewed with a long tail out to 17 weeks for a
 minority of cases, but the median case is a two-week head start, not the
-multi-week advance warning the project set out to find.
-
-![Headline lead-time result](figures/phase4_headline_lead_time.png)
+multi-week advance warning the project set out to find. The 65% figure is
+not a footnote — it is most of what happens, and it is shown that way at
+the top of the next section, not buried in a caption.
 
 ## 4. Economic comparison
+
+![Model vs. the operational baseline: what happens to all 237 test-period cessations](figures/readme_model_vs_rule.png)
 
 The brief's original plan for this section was a comparison against four
 baselines (flat reserve, category-based, tenure-based, a binary
@@ -203,7 +236,19 @@ Test AUC is flat to slightly *down* as trend and acceleration are added,
 while train AUC rises — added fitting capacity without added
 generalising signal, the opposite of what the hypothesis predicted.
 
-![Ablation result](figures/phase4_ablation.png)
+![Ablation result: levels vs. trend vs. acceleration](figures/readme_ablation.png)
+
+This hypothesis was stated in `BRIEF.md` before any code in this
+repository was written — no commit in this repository's history predates
+it. (`BRIEF.md` itself is gitignored at the user's request, so it is not
+part of the tracked deliverable and cannot literally appear in `git log`
+— what git history does confirm is that every commit in this repository,
+starting from the first, postdates the point the hypothesis was already
+fixed, not the reverse.) It was tested directly, on the cleanest cut of
+the data available, and rejected. A full-detail version of this figure,
+including the train/test bars for the confirmation-anchored and
+last-order-anchored point tests across all three tiers, is in
+`figures/phase4_ablation.png`.
 
 **This is not a "no signal exists" result.** Levels alone carry real,
 moderate signal — 0.68–0.70 AUC — about whether an actively-trading

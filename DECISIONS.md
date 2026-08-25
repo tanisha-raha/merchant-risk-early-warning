@@ -876,3 +876,31 @@ takeaway for the README: **calibration does not overturn the FAR-sweep
 result.** The specific "gets better, not worse" direction is a real
 finding from this run, not a claim to build further conclusions on
 without the smoother-calibrator follow-up.
+
+### D22 — README finalised: three presentation figures, no new analysis
+
+Per instruction, `src/phase4_presentation_figures.py` builds three
+README figures from numbers already established (D12-D14, D18-D19,
+D14 §2) — no model was refit differently and no new finding is in them:
+
+- `readme_lead_time_waterfall.png` — the three-stage argument from D13/D14
+  §1 (apparent AUC → confirmation-anchored collapse → last-order-anchored
+  correction), now the README's first figure, above the economics
+  (Section 3).
+- `readme_ablation.png` — D18's tier comparison, with a caption noting
+  the hypothesis predates this repository's commit history (`BRIEF.md`
+  is gitignored by request, so this is stated as "no commit predates it,"
+  not literally "in git log" — checked directly rather than assumed,
+  `git log --all --full-history -- BRIEF.md` returns nothing, so the
+  original phrasing suggested would have been imprecise).
+- `readme_model_vs_rule.png` — D14 §2's 65%/5%/30% breakdown, redrawn so
+  the 65%-no-benefit share is the dominant visual element rather than a
+  caption detail, opening Section 4.
+
+Two limitations added to the README that weren't there before: marketplace
+sellers vs. payment-aggregator merchants as a distinct relationship-type
+gap (not just the dataset/currency mismatch already covered), and an
+explicit statement that every economic figure in Sections 4-5 is
+simulated from assumed parameters against realised outcomes, not a
+record of money that moved. Both were prompted by direct request, not
+discovered independently this round.
