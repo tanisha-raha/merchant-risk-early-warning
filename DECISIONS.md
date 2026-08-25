@@ -224,3 +224,157 @@ disappeared when April's data was hidden.
 
 **Chose:** drop any review row where `review_creation_date <
 order_purchase_timestamp`. Full writeup in `FAILURES.md`.
+
+## Phase 2
+
+### D10 — Correction to the brief: "no seller in both" is infeasible for a discrete-time hazard panel, and unnecessary
+
+**The brief says** (Phase 2): "Split by time, never randomly... Group by
+seller so no seller appears in both." That instruction was written with a
+classification-style, one-row-per-subject setup in mind, where grouping by
+subject prevents a subject's other rows from leaking into evaluation of
+its held-out rows. **It doesn't transfer to a discrete-time hazard panel,
+and enforcing it literally breaks the model.**
+
+**Checked, not assumed:** at the provisional 26-week test cutoff
+(2018-02-25, D7) with N=8, of 1,919 eligible sellers: 240 have their whole
+observation window end before the cutoff (all 240 are events — a seller
+only "ends" before the cutoff if it failed there; every censored seller's
+window runs to `STUDY_END`, past the cutoff, by construction) — that's a
+training set with **zero censored examples**, unusable for a hazard model,
+which needs both outcomes to learn anything. 485 sellers start entirely
+after the cutoff (only 9 events among them — barely anything to evaluate).
+The remaining 1,194 (62%) straddle the boundary and can't be assigned to
+either side without one of those two broken outcomes.
+
+**Chose:** a row-level time split. Train = seller-week rows with
+`week <= cutoff`; test = `week > cutoff`. A seller active on both sides of
+the cutoff contributes rows to both sets.
+
+**Why this doesn't reintroduce the leakage "group by seller" was meant to
+prevent:** the classic risk is a model learning subject-specific
+fingerprints from a subject's train rows, then getting unearned credit
+recognizing the same subject in test. That requires the model to have
+*something* that identifies the subject. No feature is `seller_id` or
+functions as one — checked by `tests/test_no_seller_identity.py`
+(confirms no column is literally a seller key, and that no column is
+close to constant across a seller's own history, which would make it a
+de facto fingerprint even without being named `seller_id`). Every feature
+is a trailing-window, as-of-the-week statistic (Phase 1, D8) — a seller's
+train-period rows carry information about that seller's *past*, and
+predicting its *future* risk from a model that generalizes across all
+sellers' past-to-future patterns is exactly what a hazard model is
+supposed to do. That is not leakage; it's the task.
+
+**Checked (per your request) — does the model actually perform
+suspiciously better on straddling sellers than on the 485 test-only
+ones?** No — if anything, the opposite. Test-set AUC by group
+(`src/model.py`'s `straddler_check`, primary N=8): straddler rows (seller
+also has train rows) AUC = 0.896 on 27,473 rows / 228 events;
+test-only rows (seller never appears in train) AUC = 0.963 on 7,380 rows /
+only 9 events. Same direction at N=4 (0.967 vs. 0.974) and N=12 (0.866 vs.
+undefined — the test-only group has zero events at N=12, so no AUC is
+computable there). Test-only performance is as good as or better than
+straddler performance at every N checked, the opposite of what a seller-
+fingerprint leak would produce. Caveat: the test-only groups are small and
+event-sparse (9, 39, and 0 events respectively), so these comparisons are
+noisy, especially at N=8/N=12 — but the direction is consistent across all
+three, which is the relevant signal, not any single point estimate.
+**No evidence the row-level split is leaking anything the no-fingerprint
+argument missed.**
+
+**This belongs in the README methodology section** as a stated correction
+to the brief's original assumption, not a deviation quietly taken.
+
+### D11 — Missingness: indicators + zero-fill, not imputation; category by frequency encoding; discrete-time hazard only
+
+**Missingness.** Per your instruction: trend/acceleration missingness is
+signal ("too young to have a trend"), not noise to impute away. Extended
+the same logic to **level** missingness too (e.g. `aov_level` is NaN when
+a seller had zero orders in the trailing 4 weeks) — "currently completely
+inactive" is exactly the same kind of informative-missing case, just a
+different cause (lull vs. youth) from trend/accel's.
+
+Checked before implementing (not assumed) how much this costs against the
+40-column ceiling you asked to track: a naive one-indicator-per-column
+scheme would add up to 18 columns (32 + 18 = 50, blowing the ceiling).
+Checked which columns' missingness masks are actually driven by the same
+underlying cause and can share one indicator:
+- `aov`, `first_time_buyer_share`, `top_sku_revenue_share`,
+  `top_buyer_revenue_share` all key off the same denominator
+  (orders-placed-that-week) — their trend-missingness masks are **exactly
+  identical**, verified directly on the built feature table, not assumed
+  from the formulas. One shared indicator.
+- `deliver_latency` and `late_share` both key off delivered-that-week
+  counts — masks identical except 1 row out of 133,734 (an order
+  delivered without a recorded carrier date). One shared indicator (OR of
+  the two conditions, so that one-row edge case is still covered).
+- `cancel_rate`, `ship_latency`, `review_score` each key off a genuinely
+  different event (resolution date, ship date, review date) — kept
+  separate.
+- `order_volume`'s trend/accel is only ever missing in a seller's first
+  1-2 weeks of tenure (window too young to have 2 points) — which
+  `tenure_weeks` (already a feature) captures exactly and losslessly. No
+  indicator added; would be redundant.
+- `volume_aov_interaction` is built from `order_volume_trend` (never
+  missing) and `aov_trend` — reuses the `aov` group's indicator rather
+  than adding its own.
+- `category`'s 2.4% missingness (unmapped product category in the raw
+  data) is folded into frequency encoding as its own "unknown" bucket
+  (see below) rather than a separate indicator column.
+
+**Result: 5 added indicator columns** (`cancel_rate_history_missing`,
+`ship_latency_history_missing`, `delivery_history_missing`,
+`commitment_history_missing`, `review_history_missing`), each 1/0 = "this
+family's derived stats are zero-filled here, not real." **32 + 5 = 37
+model-matrix columns**, still under the 40 ceiling. All NaN feature values
+(level, trend, and accel alike) zero-filled after the indicators are set.
+
+**Category: frequency encoding, not one-hot.** ~70 raw categories would
+add ~70 columns for a one-hot scheme, blowing the ceiling for a feature
+that's mostly stable per seller anyway (80.6% constant across a seller's
+own history — see D10's fingerprint check). Encoded as each category's
+share of eligible-seller-weeks (a single numeric column, replacing the
+string `category` column in the model matrix — not an addition to the 37
+count above, since `category` was already one of the 32). Missing category
+(2.4%) mapped to its own "unknown" bucket before computing frequencies, so
+it gets a real (low, since unknown is uncommon) frequency value rather
+than a NaN needing separate handling.
+
+**Discrete-time hazard only, this phase.** Per your instruction: no Cox,
+no gradient-boosted survival model yet — logistic regression on the
+seller-week panel with `tenure_weeks` as the time-in-study term. Cox (with
+a proportional-hazards check) and gradient-boosted survival are Phase 4
+comparisons, not built here.
+
+### D12 — Phase 2 results: base-rate drift and a caution about the AUC numbers
+
+**Base-rate drift, row-level, primary N=8** (required by the brief):
+train (weeks ≤ 2018-02-25) has a 0.531% per-row event rate over 45,243
+rows / 1,434 sellers; test (weeks > 2018-02-25) has 0.680% over 34,853
+rows / 1,679 sellers — **1.28x**. At seller level the direction flips:
+16.74% of train sellers have an event in-window vs. 14.12% of test
+sellers, because the test window (26 weeks) is shorter than the train
+window (~60 weeks), so fewer test sellers have had time to reach an event
+even though the instantaneous weekly rate is higher. Both cuts are worth
+keeping in the README — they tell different stories and neither is more
+"correct."
+
+Drift is larger at N=4 (row rate 1.92x train→test) and mildly reversed at
+N=12 (0.92x) — expected, since N=12's stricter silence requirement pushes
+more of its events past the test cutoff into unconfirmable territory
+(D6), so the test window is comparatively short of them.
+
+**AUC caution, logged so it isn't mistaken for a Phase 4 result:** test
+AUC is 0.89–0.97 across N=4/8/12 — high, and worth being suspicious of
+rather than pleased by. A meaningful share of this is almost certainly the
+model detecting **that a seller has already gone quiet this week**
+(`order_volume_level` ≈ 0 in the event row, by construction of the pure-
+cessation label itself) rather than genuinely predicting distress in
+advance. That's not leakage — the level features are legitimately as-of
+safe — but it means a plain AUC overstates how useful this is as an
+*early*-warning system. This is exactly why the brief scopes rigorous
+evaluation into Phase 4 (time-dependent AUC at fixed horizons, and lead
+time as the headline metric, not aggregate AUC) rather than trusting this
+number. Not re-litigated here — flagged so Phase 4 doesn't get read as
+"confirming" a result that was never rigorously established.

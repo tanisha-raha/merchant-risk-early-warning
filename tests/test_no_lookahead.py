@@ -26,15 +26,10 @@ Two complementary checks:
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
-import pytest
 
-from features import FEATURE_COLUMNS, build_features_from_raw, load_raw
-
-RAW_DIR = Path(__file__).resolve().parents[1] / "data" / "raw"
+from features import FEATURE_COLUMNS, build_features_from_raw
 
 # A cutoff well inside the study window, chosen arbitrarily but fixed so
 # the test is deterministic. Set to the END of that W-SUN week (23:59:59),
@@ -44,12 +39,8 @@ RAW_DIR = Path(__file__).resolve().parents[1] / "data" / "raw"
 # during development: 236 orders on 2018-03-04 alone occur after 00:00:00).
 CUTOFF = pd.Timestamp("2018-03-04 23:59:59.999999")
 
-
-@pytest.fixture(scope="module")
-def raw():
-    if not RAW_DIR.exists():
-        pytest.skip(f"raw data not found at {RAW_DIR}")
-    return load_raw(RAW_DIR)
+# `raw` fixture (session-scoped) lives in conftest.py, shared with
+# test_no_seller_identity.py.
 
 
 def truncate_raw(raw: dict[str, pd.DataFrame], cutoff: pd.Timestamp) -> dict[str, pd.DataFrame]:
