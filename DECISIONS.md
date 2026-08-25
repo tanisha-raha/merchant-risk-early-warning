@@ -819,3 +819,60 @@ categories (`auto` foremost), and essentially a no-op — not harmful, but
 not useful either — for the largest single cohort of merchants in the
 dataset (new sellers, <13 weeks tenure). Both reported as instructed,
 without softening either.
+
+### D21 — Calibrated re-run of the FAR sweep: your prediction did not hold, in either direction expected
+
+`src/phase4_calibrated_sweep.py`. Isotonic regression fit on TRAIN
+predictions/labels only (`sklearn.isotonic.IsotonicRegression`), applied
+post-hoc to the raw scores `policy.py` already computes at every stage of
+the sweep. No cost parameter touched.
+
+**Your prediction was: net benefit shrinks but survives.** The actual
+result: **it doesn't shrink — the calibrated sweep beats the uncalibrated
+one at every single FAR tested (all 10 differences negative, i.e. more
+favourable, not less), and there is no sign flip anywhere**
+(`figures/phase4_calibrated_sweep.png`, `..._comparison.csv`). Stated
+plainly because it's the opposite of what was predicted, not a
+confirmation to wave through:
+
+| FAR | uncalibrated net Δ/1000mw | calibrated net Δ/1000mw | difference |
+|---:|---:|---:|---:|
+| 1% | -8.12 | -16.50 | -8.38 |
+| 5% | -74.29 | -98.03 | -23.74 |
+| 10% | -142.25 | -155.33 | -13.08 |
+
+**Why the prediction's mechanism doesn't apply, worked out after seeing
+the result, not before:** the FAR sweep was never actually probability-
+*weighted*. Cost and benefit are both computed from realized outcomes —
+a censored row that crosses a quantile-defined threshold is an
+unambiguous false alarm regardless of what probability the model
+attached to it; an event's acceleration is measured against its actual
+confirmation date. The score is used only to *rank* rows against a
+quantile threshold. Isotonic regression is monotonic, so in the limit of
+no ties it cannot change which rows clear a quantile threshold at
+all — the over-confidence D19 found should have been close to a no-op on
+this specific sweep design, not a shrink.
+
+**It wasn't a no-op, because isotonic regression is a step function and
+real, finite data produces ties at that step's plateaus** — visible
+directly in the calibrated table: FAR=1% and 2% share the identical
+threshold (0.200000) and identical accelerated-event count (26); so do
+3%/4% (61), 6%/7% (107), and 8%/9%/10% (158). Where a quantile cutoff
+lands inside one of these plateaus, the selection jumps in discrete
+blocks rather than varying smoothly, and in this data those blocks
+happened to pull in more benefit than cost. **This is an artefact of
+isotonic regression's specific shape interacting with quantile-based
+threshold selection, not a general property of "calibration helps."** A
+smoother calibrator (Platt scaling, e.g.) would very likely behave more
+predictably here — not tried, out of this timebox.
+
+**Bottom line: the economic result survives calibration and is not
+weakened by it, but not for the reason anyone would have guessed going
+in, and the specific magnitude of "how much better" should be read with
+real caution** given it hinges on where quantile cutoffs happen to land
+relative to isotonic's tie plateaus — a more sensitive dependency on
+implementation detail than the headline number suggests. The safe
+takeaway for the README: **calibration does not overturn the FAR-sweep
+result.** The specific "gets better, not worse" direction is a real
+finding from this run, not a claim to build further conclusions on
+without the smoother-calibrator follow-up.

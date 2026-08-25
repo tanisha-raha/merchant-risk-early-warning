@@ -50,4 +50,7 @@ python3 src/phase4_calibration.py
 echo "=== Phase 4: slice analysis and fairness (DECISIONS.md D20) ==="
 python3 src/phase4_slices.py
 
+echo "=== Phase 4: isotonic-calibrated FAR sweep (DECISIONS.md D21) ==="
+python3 src/phase4_calibrated_sweep.py
+
 echo "done."

@@ -1,0 +1,189 @@
+{
+  "calibrated_sweep": [
+    {
+      "false_alarm_rate": 0.01,
+      "threshold": 0.2,
+      "n_events_accelerated": 26,
+      "n_events_total": 237,
+      "benefit_total_reais": 609.6914711810437,
+      "cost_total_reais": 34.48801529069428,
+      "net_delta_cost_reais": -575.2034558903493,
+      "net_delta_cost_per_1000_merchant_weeks_reais": -16.503699993984718,
+      "seller_level_false_alarm_rate": 0.11511789181692095
+    },
+    {
+      "false_alarm_rate": 0.02,
+      "threshold": 0.2,
+      "n_events_accelerated": 26,
+      "n_events_total": 237,
+      "benefit_total_reais": 609.6914711810437,
+      "cost_total_reais": 34.48801529069428,
+      "net_delta_cost_reais": -575.2034558903493,
+      "net_delta_cost_per_1000_merchant_weeks_reais": -16.503699993984718,
+      "seller_level_false_alarm_rate": 0.11511789181692095
+    },
+    {
+      "false_alarm_rate": 0.03,
+      "threshold": 0.17647058823529413,
+      "n_events_accelerated": 61,
+      "n_events_total": 237,
+      "benefit_total_reais": 2221.1082030195557,
+      "cost_total_reais": 56.358309405885095,
+      "net_delta_cost_reais": -2164.749893613671,
+      "net_delta_cost_per_1000_merchant_weeks_reais": -62.110862583240205,
+      "seller_level_false_alarm_rate": 0.15117891816920942
+    },
+    {
+      "false_alarm_rate": 0.04,
+      "threshold": 0.17647058823529413,
+      "n_events_accelerated": 61,
+      "n_events_total": 237,
+      "benefit_total_reais": 2221.1082030195557,
+      "cost_total_reais": 56.358309405885095,
+      "net_delta_cost_reais": -2164.749893613671,
+      "net_delta_cost_per_1000_merchant_weeks_reais": -62.110862583240205,
+      "seller_level_false_alarm_rate": 0.15117891816920942
+    },
+    {
+      "false_alarm_rate": 0.05,
+      "threshold": 0.05454545454545454,
+      "n_events_accelerated": 85,
+      "n_events_total": 237,
+      "benefit_total_reais": 3494.7937525331113,
+      "cost_total_reais": 78.3019409797334,
+      "net_delta_cost_reais": -3416.491811553378,
+      "net_delta_cost_per_1000_merchant_weeks_reais": -98.02575995045987,
+      "seller_level_false_alarm_rate": 0.1941747572815534
+    },
+    {
+      "false_alarm_rate": 0.06,
+      "threshold": 0.0513347022587269,
+      "n_events_accelerated": 107,
+      "n_events_total": 237,
+      "benefit_total_reais": 3956.2683533584213,
+      "cost_total_reais": 91.87922975208694,
+      "net_delta_cost_reais": -3864.3891236063346,
+      "net_delta_cost_per_1000_merchant_weeks_reais": -110.87680037891529,
+      "seller_level_false_alarm_rate": 0.239251040221914
+    },
+    {
+      "false_alarm_rate": 0.07,
+      "threshold": 0.0513347022587269,
+      "n_events_accelerated": 107,
+      "n_events_total": 237,
+      "benefit_total_reais": 3956.2683533584213,
+      "cost_total_reais": 91.87922975208694,
+      "net_delta_cost_reais": -3864.3891236063346,
+      "net_delta_cost_per_1000_merchant_weeks_reais": -110.87680037891529,
+      "seller_level_false_alarm_rate": 0.239251040221914
+    },
+    {
+      "false_alarm_rate": 0.08,
+      "threshold": 0.04038854805725971,
+      "n_events_accelerated": 158,
+      "n_events_total": 237,
+      "benefit_total_reais": 5556.858176416128,
+      "cost_total_reais": 143.12616887357544,
+      "net_delta_cost_reais": -5413.732007542552,
+      "net_delta_cost_per_1000_merchant_weeks_reais": -155.33044522831756,
+      "seller_level_false_alarm_rate": 0.36893203883495146
+    },
+    {
+      "false_alarm_rate": 0.09,
+      "threshold": 0.04038854805725971,
+      "n_events_accelerated": 158,
+      "n_events_total": 237,
+      "benefit_total_reais": 5556.858176416128,
+      "cost_total_reais": 143.12616887357544,
+      "net_delta_cost_reais": -5413.732007542552,
+      "net_delta_cost_per_1000_merchant_weeks_reais": -155.33044522831756,
+      "seller_level_false_alarm_rate": 0.36893203883495146
+    },
+    {
+      "false_alarm_rate": 0.1,
+      "threshold": 0.04038854805725971,
+      "n_events_accelerated": 158,
+      "n_events_total": 237,
+      "benefit_total_reais": 5556.858176416128,
+      "cost_total_reais": 143.12616887357544,
+      "net_delta_cost_reais": -5413.732007542552,
+      "net_delta_cost_per_1000_merchant_weeks_reais": -155.33044522831756,
+      "seller_level_false_alarm_rate": 0.36893203883495146
+    }
+  ],
+  "comparison": [
+    {
+      "false_alarm_rate": 0.01,
+      "net_delta_per_1000mw_uncalibrated": -8.120761434514524,
+      "net_delta_per_1000mw_calibrated": -16.503699993984718,
+      "difference": -8.382938559470194,
+      "sign_flip": false
+    },
+    {
+      "false_alarm_rate": 0.02,
+      "net_delta_per_1000mw_uncalibrated": -14.870302118734738,
+      "net_delta_per_1000mw_calibrated": -16.503699993984718,
+      "difference": -1.6333978752499796,
+      "sign_flip": false
+    },
+    {
+      "false_alarm_rate": 0.03,
+      "net_delta_per_1000mw_uncalibrated": -23.71439205094077,
+      "net_delta_per_1000mw_calibrated": -62.110862583240205,
+      "difference": -38.39647053229943,
+      "sign_flip": false
+    },
+    {
+      "false_alarm_rate": 0.04,
+      "net_delta_per_1000mw_uncalibrated": -57.30794623017343,
+      "net_delta_per_1000mw_calibrated": -62.110862583240205,
+      "difference": -4.802916353066777,
+      "sign_flip": false
+    },
+    {
+      "false_alarm_rate": 0.05,
+      "net_delta_per_1000mw_uncalibrated": -74.28693245011247,
+      "net_delta_per_1000mw_calibrated": -98.02575995045987,
+      "difference": -23.738827500347398,
+      "sign_flip": false
+    },
+    {
+      "false_alarm_rate": 0.06,
+      "net_delta_per_1000mw_uncalibrated": -98.238111973297,
+      "net_delta_per_1000mw_calibrated": -110.87680037891529,
+      "difference": -12.638688405618296,
+      "sign_flip": false
+    },
+    {
+      "false_alarm_rate": 0.07,
+      "net_delta_per_1000mw_uncalibrated": -107.35344658959684,
+      "net_delta_per_1000mw_calibrated": -110.87680037891529,
+      "difference": -3.523353789318449,
+      "sign_flip": false
+    },
+    {
+      "false_alarm_rate": 0.08,
+      "net_delta_per_1000mw_uncalibrated": -123.56382970981151,
+      "net_delta_per_1000mw_calibrated": -155.33044522831756,
+      "difference": -31.766615518506043,
+      "sign_flip": false
+    },
+    {
+      "false_alarm_rate": 0.09,
+      "net_delta_per_1000mw_uncalibrated": -134.7278625942636,
+      "net_delta_per_1000mw_calibrated": -155.33044522831756,
+      "difference": -20.60258263405396,
+      "sign_flip": false
+    },
+    {
+      "false_alarm_rate": 0.1,
+      "net_delta_per_1000mw_uncalibrated": -142.24915115400557,
+      "net_delta_per_1000mw_calibrated": -155.33044522831756,
+      "difference": -13.081294074311984,
+      "sign_flip": false
+    }
+  ],
+  "any_sign_flip": false,
+  "still_wins_everywhere": true,
+  "max_abs_difference_reais": 38.39647053229943
+}
