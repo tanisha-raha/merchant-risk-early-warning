@@ -1,0 +1,293 @@
+# Merchant distress early-warning → dynamic reserve sizing
+
+**One-line summary of where this landed:** the hypothesised mechanism
+failed, a simpler one works modestly, and the economic case survives
+implausibly wide sensitivity bounds.
+
+Reproduce every number in this document with `./run.sh` (lint, tests,
+then every phase's scripts, in order). Individual scripts are documented
+in `DECISIONS.md`, referenced by entry number (`D1`, `D17`, …) throughout
+this README — that file has the full reasoning behind every choice
+mentioned here; `FAILURES.md` has the dead ends, including the ones that
+turned out to matter (D14 §3, D21).
+
+## 1. The problem
+
+A payment aggregator settles money to merchants before delivery is
+confirmed, carrying the credit exposure if the merchant then fails to
+deliver, floods refunds, or simply disappears; the standard defence — a
+rolling reserve held back from settlement — is currently sized by crude
+static rules (flat percentage, category, tenure) with no live signal.
+Across the ~20-month sample used here, R$13.5 million of total merchant
+GMV passed through the platform; 1,919 of the 3,065 sellers placed enough
+orders to be evaluable at all, and of those, 477 went on to a confirmed,
+silence-based exit. This
+project asks one narrow, falsifiable question: can payment telemetry
+alone flag a failing merchant earlier and cheaper than the naive rule
+that just watches for eight weeks of silence — and the honest answer,
+worked out in full below, is "modestly, and only if you're honest about
+what 'modestly' means."
+
+## 2. Limitations — read this before any result below
+
+**The distress label is cessation, not default.** It is defined as eight
+consecutive silent weeks with no orders, confirmed and never reversed
+within the study window (`DECISIONS.md` D3–D6). It is not a chargeback
+event, not a bankruptcy, not a merchant-reported closure — it is "this
+seller stopped placing orders and never came back." Checked directly
+(Phase 0 D-series, `src/phase0_benign_exit.py`): **86.2% of confirmed
+cessations (411 of 477) show no elevated cancellation or late-delivery
+signal in the weeks before they stop** — no visible quality collapse, no
+customer complaints spiking, nothing that looks like failure in progress.
+That is consistent with a large share of "distress events" in this
+dataset being ordinary attrition — a seller moving to another
+marketplace, retiring a side business, running out of seasonal stock —
+not merchant default in any sense a payments team would recognise. Every
+number in this document is a number about *predicting cessation*, not
+about predicting default; the gap between those two things is real and
+unmeasured here.
+
+**The cost-model parameters are assumptions, not measurements.**
+`config/costs.yaml` holds three numbers — the reserve percentage, the
+weekly working-capital cost of holding it, and the fraction of
+accelerated reserve that actually offsets a loss — and none of them come
+from data. Olist has no financing-cost, reserve-program, or write-off
+data to measure them against. They were picked once, documented, and
+never tuned to reach a particular answer (`DECISIONS.md` D16), and
+Section 4 below shows the economic conclusion is robust to wide,
+deliberately generous ranges around them — but "robust to a wide range of
+guesses" is not the same claim as "measured."
+
+**This is Brazilian e-commerce data (Olist, 2017–2018), in Brazilian
+Real, evaluated for a hypothesis about Indian payments.** Every R$ figure
+in this document is the dataset's real currency, kept that way
+deliberately rather than converted to Rupees — an FX conversion would
+imply a transfer of relevance to a market this data was never collected
+in, which the data cannot support (`DECISIONS.md` D15, D16). Order
+patterns, seasonality, refund norms, and financing costs for Indian
+payments merchants may differ from Brazilian e-commerce sellers in ways
+this project cannot check.
+
+## 3. The headline lead-time result
+
+**There is no evidence of genuine multi-week advance warning.** Checked
+directly and reported as a negative result, not softened
+(`DECISIONS.md` D13, D14 §1, `figures/phase4_headline_lead_time.png`
+right panel): scoring each confirmed cessation at 1, 2, 4, and 8 weeks
+*before the seller's actual last order* — i.e. while still genuinely
+trading, the fair test of "did we see it coming" — the model's
+discrimination sits at 0.53–0.59 AUC at every horizon. Chance is 0.50.
+That is not a small early-warning signal fading with distance; it is
+close to no signal at any distance tested.
+
+What the model can do is **detect that a seller has already gone quiet**,
+and detect it faster than a payments team manually waiting out a fixed
+eight-week silence rule would. The honest headline sentence, replacing
+"predicts distress N weeks in advance": **at a 5% false-alarm rate, the
+model beats the naive eight-week silence rule for 30% of cessations, by a
+median of 2.0 weeks — and provides no benefit at all over the naive rule
+for the other 65%** (`DECISIONS.md` D14 §2, D19;
+`figures/phase4_headline_lead_time.png` left panel). The lead-time
+distribution is right-skewed with a long tail out to 17 weeks for a
+minority of cases, but the median case is a two-week head start, not the
+multi-week advance warning the project set out to find.
+
+![Headline lead-time result](figures/phase4_headline_lead_time.png)
+
+## 4. Economic comparison
+
+The brief's original plan for this section was a comparison against four
+baselines (flat reserve, category-based, tenure-based, a binary
+classifier with no survival treatment). **That comparison was not built
+this round** — scoped out explicitly in favour of finishing the
+diagnostics above properly rather than rushing it (Section 8 has the
+follow-up plan). What *was* built, and is the one comparison this
+document can actually stand behind: the model-triggered early-reserve
+policy against the naive N=8-week silence rule itself, which is the
+rule any of those four baselines would have to beat too, and the one
+already running today in this problem's static-reserve framing.
+
+Swept the row-level false-alarm rate from 1% to 10% and priced both
+sides in R$ per 1,000 merchant-weeks (`DECISIONS.md` D16,
+`figures/phase3_far_sweep.png`): the model-based policy beats the rule
+**at every false-alarm rate tested**, and the margin widens as the rate
+loosens — from -R$8.12/1,000 merchant-weeks at 1% FAR to
+-R$142.25/1,000 merchant-weeks at 10% FAR (negative = the model saves
+money).
+
+| FAR | events accelerated | net Δcost / 1,000 merchant-weeks | seller-level FAR |
+|---:|---:|---:|---:|
+| 1% | 10/237 | -R$8.12 | 6.9% |
+| 5% | 71/237 | -R$74.29 | 17.1% |
+| 10% | 139/237 | -R$142.25 | 32.0% |
+
+**That result is far more robust than it has any right to look, given
+Section 3's near-null discrimination — checked, not assumed**
+(`DECISIONS.md` D17, `figures/phase4_tornado.png`). The breakeven value
+of `benefit_capture_rate` (how much of the extra reserve actually offsets
+a loss) is 2.3%–5.7% across the sweep, against a config default of 100%.
+The breakeven `working_capital_cost_weekly_rate` is 322%–803%
+*annualised*, against a config default of ~18%. Neither is remotely
+plausible — reserve is money the aggregator already withheld from the
+merchant's own settlement, not a debt that needs collecting, so near-full
+capture is structurally the realistic end of that parameter, not the
+optimistic one. A tornado plot across generous, honestly-wide ranges
+picked before seeing where breakeven fell never crosses zero.
+
+![Sensitivity tornado](figures/phase4_tornado.png)
+
+## 5. Calibration evidence
+
+**Calibration matters more than AUC here because the decision layer
+consumes absolute probabilities, not ranks.** Section 4's false-alarm-rate
+thresholds are cut directly from the model's own predicted probabilities;
+a model that ranks correctly but is systematically over- or
+under-confident would silently distort every threshold and every R$
+figure above, in a way AUC cannot detect.
+
+In aggregate the model is well calibrated: Brier score 0.0068, Expected
+Calibration Error 0.0045 (`DECISIONS.md` D19,
+`figures/phase4_reliability_diagram.png`). That aggregate number hides
+where it matters. The highest-risk decile of test predictions — the one
+closest to where Section 4's false-alarm thresholds actually sit — is
+**over-confident by roughly 2x**: mean predicted risk 0.080 against a mean
+actual event rate of 0.039.
+
+![Reliability diagram](figures/phase4_reliability_diagram.png)
+
+**What that miscalibration did to the economics, checked rather than
+assumed:** refit an isotonic calibrator on train predictions only and
+re-ran the full FAR sweep on the calibrated scores, no other parameter
+touched (`DECISIONS.md` D21, `figures/phase4_calibrated_sweep.png`). The
+prediction going in was that the economic margin would shrink but
+survive, given how much headroom Section 4's sensitivity analysis showed.
+**That prediction did not hold — the calibrated sweep beat the
+uncalibrated one at every single false-alarm rate tested, with no sign
+flip anywhere.** The mechanism, worked out after seeing the result: the
+FAR sweep was never actually probability-weighted (cost and benefit are
+both computed from realised outcomes, using the score only to rank rows
+against a threshold), so a monotonic recalibration should have been close
+to a no-op — it wasn't exactly, because isotonic regression is a step
+function and real data produces ties at its plateaus, which shifted which
+rows cleared each quantile threshold in discrete jumps rather than
+smoothly. **The safe conclusion is that calibration does not overturn the
+economic result. The specific size of "how much better" should be read
+with caution** — it depends on where quantile cutoffs happen to land
+relative to those tie plateaus, a more sensitive dependency on
+implementation detail than the headline number suggests. A smoother
+calibrator (Platt scaling) is the natural follow-up, not attempted here.
+
+## 6. The ablation — the brief's core hypothesis, tested directly
+
+The hypothesis this project set out to test: *the trend and acceleration
+of merchant health metrics predict distress better than their levels.*
+**Every test built in this project says no.**
+
+Three nested feature tiers were evaluated (levels only, 12 features;
+levels + trend, 28; levels + trend + acceleration, the full 37-feature
+model) against the cleanest available version of the core question:
+restricted to rows where the seller was *still genuinely placing orders
+that exact week* (raw current-week order count, not a smoothed trailing
+average — the first attempt at this check used the trailing average and
+was contaminated by a multi-week "echo" of recent activity, caught and
+corrected, `DECISIONS.md` D14 §3, D18), predicting whether the seller
+would cease within the next 8 weeks.
+
+| tier | features | train AUC | test AUC |
+|---|---:|---:|---:|
+| levels only | 12 | 0.702 | **0.682** |
+| levels + trend | 28 | 0.712 | **0.678** |
+| levels + trend + acceleration | 37 | 0.714 | **0.678** |
+
+Test AUC is flat to slightly *down* as trend and acceleration are added,
+while train AUC rises — added fitting capacity without added
+generalising signal, the opposite of what the hypothesis predicted.
+
+![Ablation result](figures/phase4_ablation.png)
+
+**This is not a "no signal exists" result.** Levels alone carry real,
+moderate signal — 0.68–0.70 AUC — about whether an actively-trading
+seller will cease within the next two months, which is itself a more
+useful and more surprising finding than the near-null point-in-time tests
+in Section 3 alone would have suggested (aggregating over an 8-week
+window recovers signal that a single point-in-time snapshot doesn't show,
+because week-to-week order counts here are individually noisy —
+`DECISIONS.md` D18, and Phase 0's F1 on how sparse per-week order volume
+is for most sellers). The finding is specifically that trend and
+acceleration, layered on top of that levels signal, add nothing this
+project could measure.
+
+## 7. Failure slices and the fairness disparity
+
+Extended Section 4's economics to four slice dimensions — tenure at test
+start, merchant size (weekly GMV quartile), dominant product category,
+and order-volume decile, all assigned per seller — at the 5%
+false-alarm rate used throughout (`DECISIONS.md` D20,
+`figures/phase4_slices.png`).
+
+Size and volume-decile: the model beats the rule in every slice, no
+exceptions. Two dimensions did not clear that bar:
+
+**Tenure — the model is inert for the largest single group of merchants
+in the dataset, not harmful to them, but not useful either.** New sellers
+(under 13 weeks of tenure at the start of the test window) are 1,361 of
+3,065 sellers — 44% of everyone in the panel, the largest tenure band by
+a wide margin. They technically lose to the rule, by R$0.01 per 1,000
+merchant-weeks — three orders of magnitude smaller than every other
+slice's margin, established sellers (-R$29.8) and veterans (-R$362.6)
+included. Few new sellers get flagged and few of their eventual failures
+get accelerated, so the honest read is that the tool has close to nothing
+to say about the largest cohort of merchants on the platform, not that it
+actively burdens them.
+
+**Category — two real losing slices, not sample-size artefacts.**
+Filtering to categories with at least 20 sellers (below that, a single
+false alarm against zero events flips the sign trivially, which is not a
+finding), 9 of 28 categories lose to the rule. The two most credible on
+sample size: **`auto`** (210 sellers, the second-largest category in the
+dataset, +R$1.88/1,000 merchant-weeks) and **`electronics`** (42 sellers,
++R$1.88/1,000 merchant-weeks). No mechanism investigated for *why* these
+categories specifically lose — a natural next check, not done here.
+
+![Slice economics by category](figures/phase4_slices_category_clean.png)
+
+## 8. What I would do next with real data
+
+In priority order, given more time and access to real payments data
+rather than Olist's e-commerce proxy:
+
+- **Replace the cessation label with an actual default/write-off event.**
+  Section 2's biggest open question — 86% of "distress events" here show
+  no quality-collapse signature, and are plausibly benign exits, not
+  merchant default. A real payments dataset would have chargebacks,
+  refund floods, and write-offs directly.
+- **Run the N=4/8/12 robustness sweep across every Phase 3/4 result.**
+  Deliberately skipped this round (explicit scope decision, not an
+  oversight) — every headline number here uses the primary N=8 cessation
+  definition only. Phase 0/1 already carried N=4/12 as parallel label
+  definitions for exactly this purpose; the machinery exists, the sweep
+  across Phase 3's economics and Phase 4's diagnostics was not run.
+- **Build the four-baseline comparison** (flat reserve, category-based,
+  tenure-based reserve, and a binary classifier with no survival
+  treatment) that Section 4 explicitly did not build. The N=8-rule
+  comparison used throughout this document is a real and relevant
+  baseline, but not the full set the brief specified, and baseline 4 in
+  particular (does survival treatment beat plain classification at all)
+  is still an open question here.
+- **Try a smoother probability calibrator** (Platt scaling) as a
+  follow-up to Section 5's isotonic check, whose step-function shape
+  makes the exact magnitude of the calibrated economic result more
+  sensitive to implementation detail than is comfortable.
+- **Investigate why `auto` and `electronics` lose economically** (Section
+  7) — category-specific order cadence, AOV structure, or delivery
+  patterns are the natural first hypotheses, untested here.
+- **Get real financing-cost and reserve-program data** to replace
+  `config/costs.yaml`'s three assumed parameters with measured ones —
+  Section 4's sensitivity analysis says the conclusion has a lot of room
+  to be wrong on these and still hold, but "a lot of room" is not the
+  same as "measured."
+- **A reserve ceiling for small/new merchants**, sized against the
+  tenure-band finding in Section 7 — the brief's original fairness ask,
+  not built this round since it wasn't in this phase's scope, and now
+  informed by evidence (the model has near-zero net effect on this group
+  either way) rather than the assumption that motivated asking for it.
