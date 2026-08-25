@@ -931,3 +931,19 @@ because the cost-model ratio (D17) makes each rare true positive worth
 far more than each common false positive costs.** Added to the README
 (Section 5, alongside the calibrated-model discussion) rather than left
 implicit across AUC/calibration/cost sections separately.
+
+**Addendum — precision is non-monotonic across the three FAR points
+(3.5%→4.2%→3.7%), checked rather than assumed to be either an error or
+purely the D21 tie-plateau effect:** recomputed precision at the same
+three FAR quantiles on the *raw, uncalibrated* scores as a control —
+0.9%→4.1%→3.9%, also non-monotonic. So the underlying model's ranking is
+not perfectly precision-ordered across this range regardless of
+calibration; that part isn't a calibration artefact. What calibration
+does add: isotonic regression collapses 31,442 distinct raw scores into
+only 50 calibrated levels, so each of the three thresholds falls in one
+of a small number of discrete blocks (15 unique levels between the 1%
+and 5% thresholds, only 6 between 5% and 10%) rather than a smooth
+continuum — those two blocks have batch precision 4.56% and 3.23%
+respectively, confirmed directly, which is what coarsens a mild
+underlying non-monotonicity into the more visible dip reported in the
+table. Footnoted in the README rather than left to look like an error.

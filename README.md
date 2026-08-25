@@ -225,8 +225,18 @@ directly, not only implied through AUC, calibration, lead time, and cost
 | FAR | threshold | flagged | true events caught | false positives | precision | recall |
 |---:|---:|---:|---:|---:|---:|---:|
 | 1% | 0.2000 | 874 | 31 | 843 | 3.5% | 13.1% |
-| 5% | 0.0545 | 2,212 | 92 | 2,120 | 4.2% | 38.8% |
+| 5% | 0.0545 | 2,212 | 92 | 2,120 | 4.2%¹ | 38.8% |
 | 10% | 0.0404 | 4,505 | 166 | 4,339 | 3.7% | 70.0% |
+
+¹ *Precision is non-monotonic (3.5%→4.2%→3.7%), not an error. Checked
+directly: it's non-monotonic on the raw, uncalibrated scores too
+(0.9%→4.1%→3.9%), so it isn't purely a calibration artefact — the
+model's ranking itself isn't perfectly precision-ordered across this
+range. Isotonic calibration makes it more visible: it collapses 31,442
+distinct raw scores into just 50 calibrated levels (the same tie-plateau
+mechanism as D21), so each threshold draws from one of a handful of
+discrete blocks of rows whose composition can differ by chance rather
+than shifting smoothly.*
 
 **Precision is poor in absolute terms — 3.5–4.2%, meaning roughly one in
 25 flags is a real cessation — and that is reported plainly, not dressed
