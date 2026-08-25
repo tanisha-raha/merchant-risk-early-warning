@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Reproduces every number reported so far (Phase 0-3). Extended as later
+# Reproduces every number reported so far (Phase 0-4). Extended as later
 # phases land -- see README.md (once written) for the final, authoritative
 # version of this file.
 set -euo pipefail
@@ -37,5 +37,17 @@ python3 src/phase2_active_only_ablation.py
 
 echo "=== Phase 3: false-alarm-rate sweep vs. the N=8 rule (DECISIONS.md D15-D16) ==="
 python3 src/policy.py
+
+echo "=== Phase 4: cost-parameter sensitivity + tornado plot (DECISIONS.md D17) ==="
+python3 src/phase4_sensitivity.py
+
+echo "=== Phase 4: ablation -- levels vs. trend vs. acceleration (DECISIONS.md D18) ==="
+python3 src/phase4_ablation.py
+
+echo "=== Phase 4: headline lead-time figure + calibration (DECISIONS.md D19) ==="
+python3 src/phase4_calibration.py
+
+echo "=== Phase 4: slice analysis and fairness (DECISIONS.md D20) ==="
+python3 src/phase4_slices.py
 
 echo "done."

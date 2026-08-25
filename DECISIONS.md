@@ -559,6 +559,12 @@ comment at the top of `config/costs.yaml`. Flagged, not silently decided
 either way; happy to add an explicit FX-converted view if that's actually
 wanted for the write-up.
 
+**Confirmed 2026 (Phase 4 kickoff):** keep everything in R$. Converting
+would imply a transfer to Indian payments the underlying data can't
+justify. This is a README limitations item, not just a code comment —
+carry it into README requirement #2 (dataset/context mismatch) when the
+README is written.
+
 ### D16 — Sweep result: the model beats the rule at every false-alarm rate tested, and the win grows with FAR
 
 | FAR | events accelerated | benefit (R$) | cost (R$) | net Δcost / 1,000 merchant-weeks (R$) | seller-level FAR |
@@ -620,3 +626,196 @@ tested, with the win growing as the rate loosens — but this conclusion
 depends heavily on one under-measured cost-parameter ratio, and Phase 4's
 sensitivity analysis needs to establish how much room that ratio has to
 move before the answer changes.**
+
+## Phase 4
+
+### D17 — Sensitivity analysis: D16's caveat doesn't materialise, and updating on that plainly
+
+`src/phase4_sensitivity.py`. Computed the breakeven value of each cost
+parameter at every FAR in the sweep, and a tornado plot at FAR=5% — both
+closed-form from the existing sweep (`figures/phase3_far_sweep.csv`),
+since both cost terms are exactly linear in their own parameter and in
+`reserve_pct` (no rescoring needed).
+
+**Breakeven `benefit_capture_rate` across the sweep: 2.3%-5.7%** (config
+default: 100%). **Breakeven `working_capital_cost_weekly_rate`: 322%-803%
+annualised** (config default: ~18%). Neither is remotely plausible —
+capture would have to fall to essentially nothing (recall reserve is
+money the aggregator *already withheld* from the merchant's own
+settlements, not a debt to be collected; near-total capture is
+structurally the realistic end of this parameter, not the optimistic
+one), and working-capital cost would have to exceed even predatory
+microfinance rates several times over. Tornado plot
+(`figures/phase4_tornado.png`) at FAR=5%: sweeping `benefit_capture_rate`
+across [0.10, 1.00] and `working_capital_cost_weekly_rate` across
+[~10%, ~60% annualised] — both deliberately wide, picked before seeing
+where breakeven fell, not after — the net result never crosses zero. Only
+`reserve_pct` produces a wider swing (R$ magnitude, not sign, D16), as
+expected since it's a common linear multiplier on both terms.
+
+**Updating plainly on D16's own caveat:** D16 flagged this as "the result
+rides almost entirely on one assumption ratio" and left open that "a
+materially higher working-capital rate or lower capture rate could flip
+this." Quantified now: it doesn't, not within any range a reader would
+call plausible. That caveat was the right thing to raise before running
+the numbers — it just turns out not to bind. **This is the highest-
+confidence finding in the project: the FAR-sweep result is robust to
+single-parameter perturbation across generous plausible ranges.** It is
+not immune to *joint* pessimism on both parameters at once (checked
+analytically: at FAR=5%, breakeven requires `wc_rate / capture >= 0.139`
+— e.g. capture=0.10 together with wc_rate >= 0.0139/week, ~72%
+annualised, would flip it — a combination requiring both a very
+pessimistic capture assumption *and* a very high financing rate
+simultaneously, not just one or the other).
+
+### D18 — The ablation: the brief's core hypothesis fails, cleanly, on every test built
+
+`src/phase4_ablation.py`. Three nested feature tiers (levels only, 12
+features; +trend, 28; +trend+accel, 37 — the full model), evaluated two
+ways, plus the corrected active-only test D14 sec.3 called for.
+
+**Corrected active-only test (the direct hypothesis test — raw
+current-week order count, not the pooled level that contaminated D14
+sec.3's first attempt; label = event within 8 weeks, anchored before
+`last_active_week`; 19,633 train / 14,351 test rows):**
+
+| tier | features | train AUC | test AUC |
+|---|---:|---:|---:|
+| levels only | 12 | 0.702 | **0.682** |
+| levels + trend | 28 | 0.712 | **0.678** |
+| levels + trend + accel | 37 | 0.714 | **0.678** |
+
+Test AUC is flat to slightly *down* as trend and acceleration are added
+(0.682 → 0.678 → 0.678), while train AUC rises slightly (0.702 → 0.714) —
+the signature of extra features adding fitting capacity without adding
+generalising signal, not the hypothesis's predicted direction.
+
+**Point-in-time test (last-order-anchored curve, D14 sec.1's clean
+anchor, all three tiers):** k=1/2/4/8 AUC ranges 0.53-0.59 for every
+tier, curves visually overlapping (`figures/phase4_ablation.png`, right
+panel). No tier separation at any horizon.
+
+**Verdict, stated as instructed regardless of outcome: the brief's core
+hypothesis — trend and acceleration predict distress better than levels —
+is not supported by any test this project built.** Levels alone carry
+real, moderate signal (0.68-0.70 AUC) about an actively-trading seller's
+risk of failing within 8 weeks — a genuine, useful finding, and a more
+optimistic one than D13/D14's point-in-time tests alone suggested, since
+the horizon-pooled test has far more statistical power (1,524 positive
+rows vs. 39-133 per point). But trend and acceleration, layered on top,
+add nothing measurable. **The finding is not "no early signal exists" —
+current-state features do carry a real signal even before a seller goes
+fully quiet. The finding is specifically that the brief's hypothesized
+mechanism — trend and acceleration beating levels — does not hold on this
+feature set, this label, and every evaluation constructed to test it.**
+
+This does not retroactively change D13/D14/D16 — Phase 2's diagnostics
+and Phase 3's economics were built on the full 37-feature model, and nothing
+here suggests a levels-only model would have scored differently on the
+FAR-sweep economics (worth confirming in a future pass, not assumed).
+Recorded here as the ablation result on its own terms, per instruction to
+report it either way and make it prominent.
+
+### D19 — Headline lead-time figure and calibration
+
+`src/phase4_calibration.py`. Why calibration matters more than AUC here,
+stated in the script and repeated for the README: the decision layer
+thresholds the model's *absolute* predicted probability against a
+false-alarm-rate-derived cutoff (Phase 3), and the brief's original
+design wanted a reserve percentage sized directly off the hazard value.
+AUC alone can't catch a model that ranks correctly but is systematically
+over- or under-confident — that would silently distort every FAR
+threshold and reserve figure downstream.
+
+**Headline lead-time figure** (`figures/phase4_headline_lead_time.png`):
+NOT the raw "days of warning before the event" the brief's Phase 4 spec
+asked for — D14 sec.2 already established the honest framing is
+acceleration over the N=8 rule. At FAR=5% (primary): median 2.0 weeks
+(mean 3.4, right-skewed with a long tail to 17 weeks), but **153/237
+events (65%) are never flagged before the rule fires at all** — the
+distribution is conditional on beating the rule, and most events don't.
+Companion panel: the last-order-anchored AUC-vs-k curve (D14 sec.1,
+D18), the complementary "is there real advance warning while still
+trading" view, restated here as the headline pairing rather than a
+separate diagnostic.
+
+**Calibration** (`figures/phase4_reliability_diagram.png`, quantile-
+binned — equal-width bins are useless at a ~0.5-0.7% base rate, almost
+everything would land in one bin): Brier=0.0068, ECE=0.0045 — good in
+aggregate, but the aggregate number hides where it matters. The bottom 8
+of 10 bins are indistinguishable from perfect (predicted and actual both
+~0), unsurprising at this base rate. The top bin — the one closest to
+Phase 3's FAR thresholds — is **over-confident**: mean predicted 0.080
+vs. mean actual 0.039, roughly 2x too high. The second-highest bin is
+mildly under-confident in the other direction (0.025 predicted vs. 0.028
+actual). **The bin that actually drives the FAR-sweep decisions is the
+most miscalibrated one, which the aggregate ECE number does not surface
+on its own.** Not corrected here (a fix — e.g. Platt scaling on this
+region specifically — is a natural next step, not done); flagged because
+Phase 3's cost figures use the raw score, and a threshold derived from
+this over-confident tail would flag slightly less often than the
+model's own probabilities imply it should.
+
+### D20 — Slice analysis and fairness: two real losing slices found
+
+`src/phase4_slices.py`. Extends Phase 3's economic framework (D16) to
+four slice dimensions — tenure at test start, size (mean weekly GMV,
+quartiles), dominant category, and order-volume decile — all assigned
+**per seller**, not per row (the question is whether the policy treats
+different *kinds* of merchants differently, not different weeks of the
+same merchant). "Loses to the rule" is economic (net Δcost per 1,000
+merchant-weeks > 0 within the slice), since the rule has no AUC of its
+own to lose on. FAR=5% throughout, matching Phase 3/4's primary operating
+point. Full tables: `figures/phase4_slices_*.csv`;
+`figures/phase4_slices.png` (all four dimensions),
+`figures/phase4_slices_category_clean.png` (readable version, ≥20-seller
+categories only — the full-label version is illegible with 70 categories).
+
+**Size and volume-decile: the model wins in every slice.** No losing
+slice in either dimension. Benefit scales with merchant size (Q4 largest:
+-R$117.9/1000mw vs. Q1 smallest: -R$12.4/1000mw) — expected, since
+benefit is R$-denominated and proportional to GMV — but the *sign* never
+flips.
+
+**Tenure: one real finding, though "loses" overstates it.** Three bands
+(new <13wk test-start tenure: 1,361 sellers — the single largest cohort,
+44% of all sellers; established 13-52wk: 1,190; veteran >52wk: 514).
+Established and veteran sellers win big (-R$29.8 and -R$362.6/1000mw).
+**New sellers technically lose, by R$0.01/1000mw — three orders of
+magnitude smaller than every other slice's margin.** The honest
+characterization isn't "the model hurts new sellers" — it's that **the
+model is essentially inert for them**: few get flagged (little
+false-alarm cost) and few of their failures get accelerated (little
+benefit either). This is a genuinely two-sided fairness fact worth
+stating plainly: new merchants — the segment the brief's fairness note
+worried would be over-reserved — are not carrying disproportionate
+false-alarm burden here, but they also see essentially none of the
+model's value. The tool has close to nothing to say about the largest
+group of merchants in the dataset.
+
+**Category: real losing slices exist, not just small-sample noise.**
+Filtering to categories with ≥20 sellers (below that, a single false
+alarm with zero events flips the sign trivially — not a meaningful
+finding on its own), 9 of 28 lose. The two most credible on sample size:
+
+- **`auto`, 210 sellers, 10 events: +R$1.88/1000mw** (a real loss, small
+  magnitude, but the second-largest category in the dataset by seller
+  count).
+- **`electronics`, 42 sellers, 3 events: +R$1.88/1000mw.**
+
+Smaller-but-still-real cases: `consoles_games` (23 sellers, +R$7.02),
+`watches_gifts` (52 sellers, +R$3.12), `musical_instruments` (38 sellers,
++R$3.07). No investigated mechanism for *why* these particular categories
+lose (a natural next check — e.g. whether they have systematically
+lower order frequency, which Phase 0's F1 already flagged as a general
+sparsity problem — not done here, timeboxed). At the other extreme,
+`cool_stuff` and `perfumery` show enormous wins (-R$802.9 and
+-R$563.4/1000mw) — a wide spread across categories that a single
+population-level number (D16) does not surface.
+
+**Bottom line:** the model-based policy's aggregate win (D16) is not
+uniform. It is genuinely negative in a handful of well-populated
+categories (`auto` foremost), and essentially a no-op — not harmful, but
+not useful either — for the largest single cohort of merchants in the
+dataset (new sellers, <13 weeks tenure). Both reported as instructed,
+without softening either.

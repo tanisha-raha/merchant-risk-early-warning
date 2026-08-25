@@ -1,0 +1,204 @@
+{
+  "ablation": {
+    "1_levels_only": {
+      "n_features": 12,
+      "at_event_week_test_auc": 0.9117411377290471,
+      "at_event_week_test_brier": 0.006776444949792085,
+      "last_order_anchored_curve": {
+        "1": {
+          "n_events_available": 237,
+          "n_events_scored": 133,
+          "n_negative_rows": 32370,
+          "auc": 0.5766493388243545,
+          "mean_positive_score": 0.01359276799295349,
+          "mean_negative_score": 0.009439658475657307
+        },
+        "2": {
+          "n_events_available": 237,
+          "n_events_scored": 120,
+          "n_negative_rows": 32370,
+          "auc": 0.5922917310266708,
+          "mean_positive_score": 0.01304789209995361,
+          "mean_negative_score": 0.009439658475657307
+        },
+        "4": {
+          "n_events_available": 237,
+          "n_events_scored": 97,
+          "n_negative_rows": 32370,
+          "auc": 0.538807569691932,
+          "mean_positive_score": 0.010178010464262957,
+          "mean_negative_score": 0.009439658475657307
+        },
+        "8": {
+          "n_events_available": 237,
+          "n_events_scored": 39,
+          "n_negative_rows": 32370,
+          "auc": 0.5718538849678793,
+          "mean_positive_score": 0.013223265476541263,
+          "mean_negative_score": 0.009439658475657307
+        }
+      }
+    },
+    "2_levels_plus_trend": {
+      "n_features": 28,
+      "at_event_week_test_auc": 0.9138256107514489,
+      "at_event_week_test_brier": 0.006816404594579483,
+      "last_order_anchored_curve": {
+        "1": {
+          "n_events_available": 237,
+          "n_events_scored": 133,
+          "n_negative_rows": 32370,
+          "auc": 0.5822806552990447,
+          "mean_positive_score": 0.014160289549607803,
+          "mean_negative_score": 0.009806570681792899
+        },
+        "2": {
+          "n_events_available": 237,
+          "n_events_scored": 120,
+          "n_negative_rows": 32370,
+          "auc": 0.5865384615384615,
+          "mean_positive_score": 0.013360233647012356,
+          "mean_negative_score": 0.009806570681792899
+        },
+        "4": {
+          "n_events_available": 237,
+          "n_events_scored": 97,
+          "n_negative_rows": 32370,
+          "auc": 0.5338502304220848,
+          "mean_positive_score": 0.01106783354716197,
+          "mean_negative_score": 0.009806570681792899
+        },
+        "8": {
+          "n_events_available": 237,
+          "n_events_scored": 39,
+          "n_negative_rows": 32370,
+          "auc": 0.5638213603922594,
+          "mean_positive_score": 0.01378751320476899,
+          "mean_negative_score": 0.009806570681792899
+        }
+      }
+    },
+    "3_levels_trend_accel": {
+      "n_features": 37,
+      "at_event_week_test_auc": 0.9140145431638645,
+      "at_event_week_test_brier": 0.00682378152584389,
+      "last_order_anchored_curve": {
+        "1": {
+          "n_events_available": 237,
+          "n_events_scored": 133,
+          "n_negative_rows": 32370,
+          "auc": 0.5839996190662011,
+          "mean_positive_score": 0.01426635808035504,
+          "mean_negative_score": 0.00986048002058992
+        },
+        "2": {
+          "n_events_available": 237,
+          "n_events_scored": 120,
+          "n_negative_rows": 32370,
+          "auc": 0.5863304500051488,
+          "mean_positive_score": 0.013421239188277914,
+          "mean_negative_score": 0.00986048002058992
+        },
+        "4": {
+          "n_events_available": 237,
+          "n_events_scored": 97,
+          "n_negative_rows": 32370,
+          "auc": 0.5342136189484344,
+          "mean_positive_score": 0.011177192013819441,
+          "mean_negative_score": 0.00986048002058992
+        },
+        "8": {
+          "n_events_available": 237,
+          "n_events_scored": 39,
+          "n_negative_rows": 32370,
+          "auc": 0.5549503734860548,
+          "mean_positive_score": 0.013865831632715007,
+          "mean_negative_score": 0.00986048002058992
+        }
+      }
+    }
+  },
+  "corrected_active_only_by_tier": {
+    "1_levels_only": {
+      "n_features": 12,
+      "horizon_weeks": 8,
+      "active_rows_total": 33984,
+      "train_rows": 19633,
+      "train_positives": 1161,
+      "test_rows": 14351,
+      "test_positives": 363,
+      "train_eval": {
+        "n": 19633,
+        "n_events": 1161,
+        "auc": 0.7022560672409092,
+        "log_loss": 0.21071895145559913,
+        "brier": 0.053924835705054824,
+        "mean_predicted": 0.05909752959698625,
+        "actual_rate": 0.059135129628686396
+      },
+      "test_eval": {
+        "n": 14351,
+        "n_events": 363,
+        "auc": 0.6823611501712212,
+        "log_loss": 0.13271390408610864,
+        "brier": 0.026926442018326474,
+        "mean_predicted": 0.06840881371128914,
+        "actual_rate": 0.025294404571110027
+      }
+    },
+    "2_levels_plus_trend": {
+      "n_features": 28,
+      "horizon_weeks": 8,
+      "active_rows_total": 33984,
+      "train_rows": 19633,
+      "train_positives": 1161,
+      "test_rows": 14351,
+      "test_positives": 363,
+      "train_eval": {
+        "n": 19633,
+        "n_events": 1161,
+        "auc": 0.7117140582725202,
+        "log_loss": 0.2090052549193633,
+        "brier": 0.05373570154706939,
+        "mean_predicted": 0.05911748656345599,
+        "actual_rate": 0.059135129628686396
+      },
+      "test_eval": {
+        "n": 14351,
+        "n_events": 363,
+        "auc": 0.6775406074155652,
+        "log_loss": 0.13445929979594295,
+        "brier": 0.027597904035316128,
+        "mean_predicted": 0.07077940263874063,
+        "actual_rate": 0.025294404571110027
+      }
+    },
+    "3_levels_trend_accel": {
+      "n_features": 37,
+      "horizon_weeks": 8,
+      "active_rows_total": 33984,
+      "train_rows": 19633,
+      "train_positives": 1161,
+      "test_rows": 14351,
+      "test_positives": 363,
+      "train_eval": {
+        "n": 19633,
+        "n_events": 1161,
+        "auc": 0.7140971609054036,
+        "log_loss": 0.20884438071066194,
+        "brier": 0.05369666781010673,
+        "mean_predicted": 0.05916520033014803,
+        "actual_rate": 0.059135129628686396
+      },
+      "test_eval": {
+        "n": 14351,
+        "n_events": 363,
+        "auc": 0.6781840160515389,
+        "log_loss": 0.13438016063710947,
+        "brier": 0.027551486001089035,
+        "mean_predicted": 0.0706471692808106,
+        "actual_rate": 0.025294404571110027
+      }
+    }
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "breakeven_table": [
+    {
+      "false_alarm_rate": 0.01,
+      "benefit_total_reais": 300.0055727115079,
+      "cost_total_reais": 16.97267443437321,
+      "breakeven_benefit_capture_rate": 0.05657453053611946,
+      "breakeven_wc_rate_weekly": 0.061865294626978116,
+      "breakeven_wc_rate_annualised_pct": 321.6995320602862
+    },
+    {
+      "false_alarm_rate": 0.02,
+      "benefit_total_reais": 547.0438762528074,
+      "cost_total_reais": 28.769236508545696,
+      "breakeven_benefit_capture_rate": 0.05259036387649912,
+      "breakeven_wc_rate_weekly": 0.06655211605341323,
+      "breakeven_wc_rate_annualised_pct": 346.0710034777488
+    },
+    {
+      "false_alarm_rate": 0.03,
+      "benefit_total_reais": 867.4764589001124,
+      "cost_total_reais": 40.958752748673795,
+      "breakeven_benefit_capture_rate": 0.04721598186146292,
+      "breakeven_wc_rate_weekly": 0.07412744291264342,
+      "breakeven_wc_rate_annualised_pct": 385.46270314574576
+    },
+    {
+      "false_alarm_rate": 0.04,
+      "benefit_total_reais": 2051.324948857234,
+      "cost_total_reais": 53.97109889699965,
+      "breakeven_benefit_capture_rate": 0.02631036049508696,
+      "breakeven_wc_rate_weekly": 0.13302744371950243,
+      "breakeven_wc_rate_annualised_pct": 691.7427073414126
+    },
+    {
+      "false_alarm_rate": 0.05,
+      "benefit_total_reais": 2655.976282527982,
+      "cost_total_reais": 66.853825844212,
+      "breakeven_benefit_capture_rate": 0.025171092936334478,
+      "breakeven_wc_rate_weekly": 0.1390483920921745,
+      "breakeven_wc_rate_annualised_pct": 723.0516388793075
+    },
+    {
+      "false_alarm_rate": 0.06,
+      "benefit_total_reais": 3503.3317875869625,
+      "cost_total_reais": 79.43887098164157,
+      "breakeven_benefit_capture_rate": 0.02267523483305524,
+      "breakeven_wc_rate_weekly": 0.15435341798082775,
+      "breakeven_wc_rate_annualised_pct": 802.6377735003043
+    },
+    {
+      "false_alarm_rate": 0.07,
+      "benefit_total_reais": 3829.88458495403,
+      "cost_total_reais": 88.29491096681053,
+      "breakeven_benefit_capture_rate": 0.023054196284055996,
+      "breakeven_wc_rate_weekly": 0.1518161794441109,
+      "breakeven_wc_rate_annualised_pct": 789.4441331093767
+    },
+    {
+      "false_alarm_rate": 0.08,
+      "benefit_total_reais": 4409.758656622713,
+      "cost_total_reais": 103.18849974665171,
+      "breakeven_benefit_capture_rate": 0.023400033376357234,
+      "breakeven_wc_rate_weekly": 0.149572436231493,
+      "breakeven_wc_rate_annualised_pct": 777.7766684037636
+    },
+    {
+      "false_alarm_rate": 0.09,
+      "benefit_total_reais": 4808.429870173894,
+      "cost_total_reais": 112.75967517602582,
+      "breakeven_benefit_capture_rate": 0.02345041483821161,
+      "breakeven_wc_rate_weekly": 0.14925109104240133,
+      "breakeven_wc_rate_annualised_pct": 776.1056734204869
+    },
+    {
+      "false_alarm_rate": 0.1,
+      "benefit_total_reais": 5080.653387018846,
+      "cost_total_reais": 122.84372184829084,
+      "breakeven_benefit_capture_rate": 0.024178725154161983,
+      "breakeven_wc_rate_weekly": 0.14475535735173078,
+      "breakeven_wc_rate_annualised_pct": 752.727858229
+    }
+  ],
+  "tornado_far": 0.05,
+  "tornado_base_net_delta": -74.28693245011247,
+  "tornado_rows": [
+    {
+      "parameter": "reserve_pct",
+      "low_value": 0.1,
+      "high_value": 0.3,
+      "net_delta_at_low": -49.52462163340833,
+      "net_delta_at_high": -148.57386490022495,
+      "swing": 99.04924326681662
+    },
+    {
+      "parameter": "benefit_capture_rate",
+      "low_value": 0.1,
+      "high_value": 1.0,
+      "net_delta_at_low": -5.7023442001717575,
+      "net_delta_at_high": -74.28693245011247,
+      "swing": 68.58458824994072
+    },
+    {
+      "parameter": "working_capital_cost_weekly_rate",
+      "low_value": 0.0019,
+      "high_value": 0.0115,
+      "net_delta_at_low": -75.16380815542777,
+      "net_delta_at_high": -69.90255392353599,
+      "swing": 5.261254231891783
+    }
+  ]
+}
