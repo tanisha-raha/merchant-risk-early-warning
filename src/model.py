@@ -144,8 +144,8 @@ def report_base_rate_drift(train: pd.DataFrame, test: pd.DataFrame) -> dict:
     }
 
 
-def fit_model(train: pd.DataFrame) -> tuple[LogisticRegression, StandardScaler]:
-    X = train[MODEL_FEATURE_COLUMNS].to_numpy(dtype=float)
+def fit_model(train: pd.DataFrame, feature_cols: list[str] = MODEL_FEATURE_COLUMNS) -> tuple[LogisticRegression, StandardScaler]:
+    X = train[feature_cols].to_numpy(dtype=float)
     y = train["label"].to_numpy()
     scaler = StandardScaler().fit(X)
     clf = LogisticRegression(max_iter=2000)
@@ -153,9 +153,22 @@ def fit_model(train: pd.DataFrame) -> tuple[LogisticRegression, StandardScaler]:
     return clf, scaler
 
 
-def predict(clf: LogisticRegression, scaler: StandardScaler, df: pd.DataFrame) -> np.ndarray:
-    X = df[MODEL_FEATURE_COLUMNS].to_numpy(dtype=float)
+def predict(
+    clf: LogisticRegression, scaler: StandardScaler, df: pd.DataFrame, feature_cols: list[str] = MODEL_FEATURE_COLUMNS
+) -> np.ndarray:
+    X = df[feature_cols].to_numpy(dtype=float)
     return clf.predict_proba(scaler.transform(X))[:, 1]
+
+
+def transform_features(df: pd.DataFrame, freq_map: pd.Series) -> pd.DataFrame:
+    """Apply the same missingness-indicator + category-frequency transform
+    used in run_for_n(), exposed so diagnostics can score arbitrary rows
+    (e.g. a row k weeks before an event) with an already-fitted model
+    without duplicating the transform logic.
+    """
+    df = add_missing_indicators_and_fill(df)
+    df = df.assign(category_freq=apply_category_frequency(df["category"], freq_map))
+    return df
 
 
 def evaluate(y_true: np.ndarray, y_pred: np.ndarray) -> dict:
@@ -199,7 +212,9 @@ def straddler_check(test: pd.DataFrame, train: pd.DataFrame, y_pred_test: np.nda
     return out
 
 
-def run_for_n(panel: pd.DataFrame, features_df: pd.DataFrame, n_weeks: int) -> dict:
+def run_for_n(
+    panel: pd.DataFrame, features_df: pd.DataFrame, n_weeks: int, feature_cols: list[str] = MODEL_FEATURE_COLUMNS
+) -> dict:
     labels = build_labels(panel, n_weeks)
     table = build_person_period_table(panel, features_df, labels)
     table = add_missing_indicators_and_fill(table)
@@ -211,9 +226,9 @@ def run_for_n(panel: pd.DataFrame, features_df: pd.DataFrame, n_weeks: int) -> d
     train = train.assign(category_freq=apply_category_frequency(train["category"], freq_map))
     test = test.assign(category_freq=apply_category_frequency(test["category"], freq_map))
 
-    clf, scaler = fit_model(train)
-    y_pred_train = predict(clf, scaler, train)
-    y_pred_test = predict(clf, scaler, test)
+    clf, scaler = fit_model(train, feature_cols)
+    y_pred_train = predict(clf, scaler, train, feature_cols)
+    y_pred_test = predict(clf, scaler, test, feature_cols)
 
     train_eval = evaluate(train["label"].to_numpy(), y_pred_train)
     test_eval = evaluate(test["label"].to_numpy(), y_pred_test)
@@ -227,7 +242,14 @@ def run_for_n(panel: pd.DataFrame, features_df: pd.DataFrame, n_weeks: int) -> d
         "train_eval": train_eval,
         "test_eval": test_eval,
         "straddler_check": straddler,
-        "coef": dict(zip(MODEL_FEATURE_COLUMNS, clf.coef_[0])),
+        "_clf": clf,
+        "_scaler": scaler,
+        "_freq_map": freq_map,
+        "_labels": labels,
+        "_train": train,
+        "_test": test,
+        "_feature_cols": feature_cols,
+        "coef": dict(zip(feature_cols, clf.coef_[0])),
     }
 
 
@@ -270,7 +292,13 @@ def main() -> None:
 
     def _clean(obj):
         if isinstance(obj, dict):
-            return {k: _clean(v) for k, v in obj.items()}
+            # keys prefixed "_" hold fitted objects/DataFrames for in-process
+            # reuse (e.g. by the lead-time diagnostic) -- not JSON output.
+            # Top-level `results` is keyed by n_weeks (int), so the "_"
+            # check must only apply to string keys.
+            return {
+                k: _clean(v) for k, v in obj.items() if not (isinstance(k, str) and k.startswith("_"))
+            }
         if isinstance(obj, (np.floating, np.integer)):
             return obj.item()
         if isinstance(obj, float) and np.isnan(obj):

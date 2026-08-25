@@ -165,3 +165,35 @@ January. Fixed by dropping any review row where
 `build_review_weekly`. This is the test doing exactly its job: catching a
 real, if narrow (0.075% of rows), source of leakage-shaped distortion
 before it reached a model.
+
+## Phase 2
+
+### F7 — `model.py`'s JSON serialization crashed on the refactor that enabled the D13 diagnostic
+
+**What happened:** extending `run_for_n()` to return the fitted
+classifier/scaler/frequency-map/train/test objects (so
+`phase2_lead_time_diagnostic.py` could reuse an already-fitted model
+instead of refitting) meant adding `"_clf"`, `"_scaler"`, etc. keys to its
+result dict, and updating `main()`'s `_clean()` helper to strip anything
+prefixed `_` before JSON-serializing. Tested the new diagnostic script
+directly and it worked -- but didn't re-run `model.py`'s own `main()`
+after the shared-code edit until asked to verify no regression. It had
+one: `_clean()`'s new filter called `k.startswith("_")` unconditionally,
+and the top-level `results` dict in `main()` is keyed by `n_weeks`
+(**int**, not str: `results[8]`, `results[4]`, `results[12]`) --
+`AttributeError: 'int' object has no attribute 'startswith'`, crashing
+after all three N-blocks had already fit and printed correctly, mid-write
+of `figures/phase2_model_summary.json` (left as a 0-byte, invalid file).
+
+**Resolution:** guarded the filter with `isinstance(k, str)` before
+calling `.startswith`. Re-ran and confirmed both `model.py` (all three N
+blocks, valid JSON output) and the diagnostic script still produce
+identical numbers to before the fix.
+
+**Why this is worth recording rather than just fixing quietly:** shared
+code was extended for one caller (the diagnostic) without re-verifying the
+original caller (`model.py`'s own `main()`) still worked end to end --
+exactly the kind of thing "run the tests" doesn't catch when the broken
+path (serializing an int-keyed dict) isn't exercised by any existing test.
+No test currently covers `model.py`'s CLI output; the diagnostic script
+was tested directly, but the regression was only in `model.py` itself.

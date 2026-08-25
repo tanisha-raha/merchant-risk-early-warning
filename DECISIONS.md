@@ -378,3 +378,60 @@ evaluation into Phase 4 (time-dependent AUC at fixed horizons, and lead
 time as the headline metric, not aggregate AUC) rather than trusting this
 number. Not re-litigated here — flagged so Phase 4 doesn't get read as
 "confirming" a result that was never rigorously established.
+
+### D13 — D12's AUC concern is real: confirmed, not fixed, per instruction
+
+Checked before touching Phase 3, per your instruction, with
+`src/phase2_lead_time_diagnostic.py`: for each test-period event (N=8),
+scored the prediction row exactly k weeks before its confirmation date
+against a fixed pool of every test-period censored-seller row, for
+k=1/2/4/8. Strictly out-of-sample both ways (event and prediction row both
+required to be after `TEST_CUTOFF`).
+
+**Result — AUC collapses toward chance as k grows:**
+
+| k (weeks before event) | AUC, full model (37 feat.) | AUC, order_volume excluded (34 feat.) | events scored |
+|---|---:|---:|---:|
+| 1 | 0.909 | 0.909 | 232/237 |
+| 2 | 0.876 | 0.876 | 224/237 |
+| 4 | 0.804 | 0.806 | 202/237 |
+| 8 | **0.499** | **0.518** | 145/237 |
+
+Figure: `figures/phase2_lead_time_diagnostic.png`. At k=8 the full model is
+statistically indistinguishable from a coin flip (0.499). Real
+discriminative power is concentrated in the last ~1-2 weeks before an
+event (0.88-0.91) and has substantially eroded by 4 weeks out (0.80). The
+mean predicted score for soon-to-fail sellers at k=8 (0.0001) is actually
+*below* the mean for censored sellers (0.0099) — 8 weeks out, these
+sellers don't read as "borderline," they read as unusually low-risk by
+this model's own scoring, which is a stronger version of "no early signal"
+than AUC=0.5 alone conveys.
+
+**Mechanism check — removing `order_volume` entirely changes almost
+nothing** (0.909/0.876/0.806/0.518 vs. 0.909/0.876/0.804/0.499, full curve
+in the table above, visually overlapping in the figure). This rules out
+the specific hypothesis that direct order-volume features are *the*
+mechanism — but it does not rescue the early-warning story. If anything it
+sharpens the "quiet detector" reading: the collapse-toward-chance shape
+persists almost identically whether or not the model can see raw order
+volume, which means the "seller has gone quiet" signal is redundantly
+encoded elsewhere too — most likely the shared missingness indicators
+(`commitment_history_missing`, `delivery_history_missing`, D11), which
+fire on exactly the same condition (zero recent orders) that
+`order_volume_level` would have flagged directly. Removing one carrier of
+that signal didn't remove the signal, because it wasn't the only carrier.
+This diagnostic did not test removing the indicators too — a stricter cut
+than what was asked for here, and explicitly not done, per instruction to
+report before fixing.
+
+**Verdict, stated plainly: this is substantially a quiet-detector past a
+~2-week horizon, not an early-warning system in the sense the brief's
+core hypothesis is about.** Genuine predictive lead time, as currently
+built, looks like roughly 1-2 weeks, not the longer horizon the project's
+premise assumes. This is a finding about the *current* feature set and
+label, not a verdict on the underlying hypothesis (trend/acceleration
+features *might* still carry real multi-week signal that a single pooled
+logistic regression across all tenure lengths isn't extracting cleanly —
+untested here). Not fixed. Implications for Phase 3 (a cost model
+consuming these probabilities) and the ablation/lead-time work reserved
+for Phase 4 are yours to decide, not mine to resolve by building forward.

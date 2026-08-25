@@ -26,4 +26,7 @@ python3 src/features.py
 echo "=== Phase 2: discrete-time hazard model ==="
 python3 src/model.py
 
+echo "=== Phase 2: lead-time / order_volume-ablation diagnostic (DECISIONS.md D13) ==="
+python3 src/phase2_lead_time_diagnostic.py
+
 echo "done."

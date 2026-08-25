@@ -1,0 +1,74 @@
+{
+  "test_cutoff": "2018-02-25",
+  "primary_n": 8,
+  "full_model_at_event_week_auc": 0.9140145431638645,
+  "no_volume_at_event_week_auc": 0.9133757078261412,
+  "full_model_lead_time_curve": {
+    "1": {
+      "n_events_available": 237,
+      "n_events_scored": 232,
+      "n_negative_rows": 32370,
+      "auc": 0.9090762253257061,
+      "mean_positive_score": 0.05395309853510521,
+      "mean_negative_score": 0.009860480020589977
+    },
+    "2": {
+      "n_events_available": 237,
+      "n_events_scored": 224,
+      "n_negative_rows": 32370,
+      "auc": 0.8755642073789663,
+      "mean_positive_score": 0.03661348740062857,
+      "mean_negative_score": 0.009860480020589977
+    },
+    "4": {
+      "n_events_available": 237,
+      "n_events_scored": 202,
+      "n_negative_rows": 32370,
+      "auc": 0.8035935057824595,
+      "mean_positive_score": 0.007074726366113462,
+      "mean_negative_score": 0.009860480020589977
+    },
+    "8": {
+      "n_events_available": 237,
+      "n_events_scored": 145,
+      "n_negative_rows": 32370,
+      "auc": 0.4994697090750269,
+      "mean_positive_score": 0.00010760040454892451,
+      "mean_negative_score": 0.009860480020589977
+    }
+  },
+  "no_volume_lead_time_curve": {
+    "1": {
+      "n_events_available": 237,
+      "n_events_scored": 232,
+      "n_negative_rows": 32370,
+      "auc": 0.9090870777539868,
+      "mean_positive_score": 0.05381758053772268,
+      "mean_negative_score": 0.009720656393335317
+    },
+    "2": {
+      "n_events_available": 237,
+      "n_events_scored": 224,
+      "n_negative_rows": 32370,
+      "auc": 0.8764819580519881,
+      "mean_positive_score": 0.03712995030287314,
+      "mean_negative_score": 0.009720656393335317
+    },
+    "4": {
+      "n_events_available": 237,
+      "n_events_scored": 202,
+      "n_negative_rows": 32370,
+      "auc": 0.8059911389656111,
+      "mean_positive_score": 0.007752139312972319,
+      "mean_negative_score": 0.009720656393335317
+    },
+    "8": {
+      "n_events_available": 237,
+      "n_events_scored": 145,
+      "n_negative_rows": 32370,
+      "auc": 0.5181596412173894,
+      "mean_positive_score": 7.767509934344847e-05,
+      "mean_negative_score": 0.009720656393335317
+    }
+  }
+}
