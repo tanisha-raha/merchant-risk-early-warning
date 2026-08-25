@@ -26,7 +26,13 @@ python3 src/features.py
 echo "=== Phase 2: discrete-time hazard model ==="
 python3 src/model.py
 
-echo "=== Phase 2: lead-time / order_volume-ablation diagnostic (DECISIONS.md D13) ==="
+echo "=== Phase 2: lead-time / order_volume-ablation diagnostic (DECISIONS.md D13-D14) ==="
 python3 src/phase2_lead_time_diagnostic.py
+
+echo "=== Phase 2: acceleration vs. the N=8 silence rule (DECISIONS.md D14 sec.2) ==="
+python3 src/phase2_acceleration_vs_rule.py
+
+echo "=== Phase 2: active-only-rows core-hypothesis check (DECISIONS.md D14 sec.3) ==="
+python3 src/phase2_active_only_ablation.py
 
 echo "done."

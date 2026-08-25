@@ -66,7 +66,16 @@ VOLUME_COLS = ["order_volume_level", "order_volume_trend", "order_volume_accel"]
 NO_VOLUME_FEATURE_COLUMNS = [c for c in MODEL_FEATURE_COLUMNS if c not in VOLUME_COLS]
 
 
-def lead_time_auc(fit: dict, k_weeks_list: list[int], features_df: pd.DataFrame) -> dict:
+def lead_time_auc(
+    fit: dict, k_weeks_list: list[int], features_df: pd.DataFrame, anchor_col: str = "event_week"
+) -> dict:
+    """anchor_col: 'event_week' (confirmation week, last_active_week + N --
+    k=N under this anchor lands exactly on last_active_week) or
+    'last_active_week' (the seller's actual final order -- k weeks under
+    this anchor means k weeks while the seller was still genuinely
+    trading, before their last order). See DECISIONS.md D14 for why both
+    matter: they answer different questions.
+    """
     clf, scaler, freq_map, labels = fit["_clf"], fit["_scaler"], fit["_freq_map"], fit["_labels"]
     feature_cols = fit["_feature_cols"]
 
@@ -81,7 +90,7 @@ def lead_time_auc(fit: dict, k_weeks_list: list[int], features_df: pd.DataFrame)
 
     out = {}
     for k in k_weeks_list:
-        target_week = events["event_week"] - pd.Timedelta(weeks=k)
+        target_week = events[anchor_col] - pd.Timedelta(weeks=k)
         lookup = pd.DataFrame({"seller_id": events.index, "week": target_week.to_numpy()})
         lookup = lookup[lookup["week"] > TEST_CUTOFF]  # keep the prediction row strictly out-of-sample too
 
@@ -107,34 +116,46 @@ def lead_time_auc(fit: dict, k_weeks_list: list[int], features_df: pd.DataFrame)
     return out
 
 
+def _print_curve(label: str, curve: dict) -> None:
+    print(f"--- {label} ---")
+    for k, stats in curve.items():
+        print(
+            f"k={k:>2}: AUC={stats['auc']:.3f}  "
+            f"(scored {stats['n_events_scored']}/{stats['n_events_available']} events vs "
+            f"{stats['n_negative_rows']} censored rows; mean score pos={stats['mean_positive_score']:.4f} "
+            f"neg={stats['mean_negative_score']:.4f})"
+        )
+
+
 def main() -> None:
     raw_dir = Path("data/raw")
     panel = build_panel(raw_dir)
     features_df = build_features(raw_dir)
 
-    print(f"TEST_CUTOFF = {TEST_CUTOFF.date()}, primary N={PRIMARY_N}\n")
+    print(f"TEST_CUTOFF = {TEST_CUTOFF.date()}, primary N={PRIMARY_N}")
+    print(
+        "Two anchors (DECISIONS.md D14): 'event_week' = confirmation week "
+        "(last_active_week + N) -- k=N under this anchor lands exactly on "
+        "last_active_week itself. 'last_active_week' = the seller's actual "
+        "final order -- k weeks under this anchor is k weeks while the "
+        "seller was still genuinely trading, before its last order.\n"
+    )
 
     print("=== full model (all 37 features) ===")
     full_fit = run_for_n(panel, features_df, PRIMARY_N)
-    full_curve = lead_time_auc(full_fit, K_WEEKS, features_df)
-    for k, stats in full_curve.items():
-        print(
-            f"k={k:>2} weeks before event: AUC={stats['auc']:.3f}  "
-            f"(scored {stats['n_events_scored']}/{stats['n_events_available']} events vs "
-            f"{stats['n_negative_rows']} censored rows; mean score pos={stats['mean_positive_score']:.4f} "
-            f"neg={stats['mean_negative_score']:.4f})"
-        )
+    full_curve_confirm = lead_time_auc(full_fit, K_WEEKS, features_df, anchor_col="event_week")
+    full_curve_lastorder = lead_time_auc(full_fit, K_WEEKS, features_df, anchor_col="last_active_week")
+    _print_curve("anchored to event_week (confirmation)", full_curve_confirm)
+    _print_curve("anchored to last_active_week (final order)", full_curve_lastorder)
 
     print(f"\n=== order_volume excluded ({len(NO_VOLUME_FEATURE_COLUMNS)} features) ===")
     no_volume_fit = run_for_n(panel, features_df, PRIMARY_N, feature_cols=NO_VOLUME_FEATURE_COLUMNS)
-    no_volume_curve = lead_time_auc(no_volume_fit, K_WEEKS, features_df)
-    for k, stats in no_volume_curve.items():
-        print(
-            f"k={k:>2} weeks before event: AUC={stats['auc']:.3f}  "
-            f"(scored {stats['n_events_scored']}/{stats['n_events_available']} events vs "
-            f"{stats['n_negative_rows']} censored rows; mean score pos={stats['mean_positive_score']:.4f} "
-            f"neg={stats['mean_negative_score']:.4f})"
-        )
+    no_volume_curve_confirm = lead_time_auc(no_volume_fit, K_WEEKS, features_df, anchor_col="event_week")
+    no_volume_curve_lastorder = lead_time_auc(
+        no_volume_fit, K_WEEKS, features_df, anchor_col="last_active_week"
+    )
+    _print_curve("anchored to event_week (confirmation)", no_volume_curve_confirm)
+    _print_curve("anchored to last_active_week (final order)", no_volume_curve_lastorder)
 
     print(f"\nfull-model test AUC (from D12, at-event-week): {full_fit['test_eval']['auc']:.3f}")
     print(f"no-volume test AUC (at-event-week): {no_volume_fit['test_eval']['auc']:.3f}")
@@ -144,8 +165,10 @@ def main() -> None:
         "primary_n": PRIMARY_N,
         "full_model_at_event_week_auc": full_fit["test_eval"]["auc"],
         "no_volume_at_event_week_auc": no_volume_fit["test_eval"]["auc"],
-        "full_model_lead_time_curve": full_curve,
-        "no_volume_lead_time_curve": no_volume_curve,
+        "full_model_lead_time_curve_confirmation_anchored": full_curve_confirm,
+        "full_model_lead_time_curve_last_order_anchored": full_curve_lastorder,
+        "no_volume_lead_time_curve_confirmation_anchored": no_volume_curve_confirm,
+        "no_volume_lead_time_curve_last_order_anchored": no_volume_curve_lastorder,
     }
     out_path = Path("figures") / "phase2_lead_time_diagnostic.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)

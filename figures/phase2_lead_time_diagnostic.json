@@ -3,7 +3,7 @@
   "primary_n": 8,
   "full_model_at_event_week_auc": 0.9140145431638645,
   "no_volume_at_event_week_auc": 0.9133757078261412,
-  "full_model_lead_time_curve": {
+  "full_model_lead_time_curve_confirmation_anchored": {
     "1": {
       "n_events_available": 237,
       "n_events_scored": 232,
@@ -37,7 +37,41 @@
       "mean_negative_score": 0.009860480020589977
     }
   },
-  "no_volume_lead_time_curve": {
+  "full_model_lead_time_curve_last_order_anchored": {
+    "1": {
+      "n_events_available": 237,
+      "n_events_scored": 133,
+      "n_negative_rows": 32370,
+      "auc": 0.5839996190662011,
+      "mean_positive_score": 0.014266358080355136,
+      "mean_negative_score": 0.009860480020589977
+    },
+    "2": {
+      "n_events_available": 237,
+      "n_events_scored": 120,
+      "n_negative_rows": 32370,
+      "auc": 0.5863304500051488,
+      "mean_positive_score": 0.013421239188278004,
+      "mean_negative_score": 0.009860480020589977
+    },
+    "4": {
+      "n_events_available": 237,
+      "n_events_scored": 97,
+      "n_negative_rows": 32370,
+      "auc": 0.5342136189484344,
+      "mean_positive_score": 0.01117719201381951,
+      "mean_negative_score": 0.009860480020589977
+    },
+    "8": {
+      "n_events_available": 237,
+      "n_events_scored": 39,
+      "n_negative_rows": 32370,
+      "auc": 0.5549503734860548,
+      "mean_positive_score": 0.0138658316327151,
+      "mean_negative_score": 0.009860480020589977
+    }
+  },
+  "no_volume_lead_time_curve_confirmation_anchored": {
     "1": {
       "n_events_available": 237,
       "n_events_scored": 232,
@@ -68,6 +102,40 @@
       "n_negative_rows": 32370,
       "auc": 0.5181596412173894,
       "mean_positive_score": 7.767509934344847e-05,
+      "mean_negative_score": 0.009720656393335317
+    }
+  },
+  "no_volume_lead_time_curve_last_order_anchored": {
+    "1": {
+      "n_events_available": 237,
+      "n_events_scored": 133,
+      "n_negative_rows": 32370,
+      "auc": 0.5813434187879337,
+      "mean_positive_score": 0.014146598664045128,
+      "mean_negative_score": 0.009720656393335317
+    },
+    "2": {
+      "n_events_available": 237,
+      "n_events_scored": 120,
+      "n_negative_rows": 32370,
+      "auc": 0.5925776181649675,
+      "mean_positive_score": 0.013095680829938734,
+      "mean_negative_score": 0.009720656393335317
+    },
+    "4": {
+      "n_events_available": 237,
+      "n_events_scored": 97,
+      "n_negative_rows": 32370,
+      "auc": 0.5389360773785068,
+      "mean_positive_score": 0.010648907396311936,
+      "mean_negative_score": 0.009720656393335317
+    },
+    "8": {
+      "n_events_available": 237,
+      "n_events_scored": 39,
+      "n_negative_rows": 32370,
+      "auc": 0.580109788265488,
+      "mean_positive_score": 0.013608078480081455,
       "mean_negative_score": 0.009720656393335317
     }
   }

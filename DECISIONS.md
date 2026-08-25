@@ -435,3 +435,104 @@ logistic regression across all tenure lengths isn't extracting cleanly —
 untested here). Not fixed. Implications for Phase 3 (a cost model
 consuming these probabilities) and the ablation/lead-time work reserved
 for Phase 4 are yours to decide, not mine to resolve by building forward.
+
+### D14 — Three follow-ups on D13, reported, nothing fixed
+
+#### 1. Anchor clarification: `k` was anchored to the confirmation week, not the last order
+
+`event_week = last_active_week + N` (`distress_events.py`). D13's k values
+were `event_week - k`, so **k=N (=8) lands exactly on `last_active_week`
+itself** — the week of the seller's actual final order. Every k<8 tested
+in D13 was a week *inside the silence period* (k=4 → 4 weeks already
+quiet; k=1 → 7 weeks already quiet), not before it. D13's framing ("does
+skill collapse toward chance as k grows") was still a fair question, but
+none of its k values tested genuine advance warning while the seller was
+still trading.
+
+**Same table, anchored to `last_active_week` instead** (k weeks *before*
+the seller's actual last order, still actively trading), full model:
+
+| k (weeks before last order) | AUC | events scored |
+|---|---:|---:|
+| 1 | 0.584 | 133/237 |
+| 2 | 0.586 | 120/237 |
+| 4 | 0.534 | 97/237 |
+| 8 | 0.555 | 39/237 |
+
+order_volume-excluded model: 0.581 / 0.593 / 0.539 / 0.580 — same shape.
+**This is the cleaner test, and it's near-null at every horizon.** For
+reference, confirmation-anchored k=8 (0.499) and last-order-anchored k=0
+describe the same row by construction (both = `last_active_week`) — the
+two tables agree exactly where they overlap, which is a consistency check
+that the reimplementation is correct, not a new result.
+`figures/phase2_lead_time_diagnostic.json` has both curves in full, for
+both feature sets. Script: `src/phase2_lead_time_diagnostic.py`.
+
+#### 2. The operative baseline: acceleration over the N=8 rule, at fixed false-alarm rates
+
+`src/phase2_acceleration_vs_rule.py`: threshold set on the row-level
+false-alarm rate over the test-period censored-row pool; for each
+test-period event (237 total), scanned every out-of-sample week from
+`TEST_CUTOFF` through `event_week` for the first week the model's score
+crosses that threshold, compared to the rule's fixed fire time
+(`event_week`, always — the rule is deterministic).
+
+| row-level FAR | threshold | seller-level FAR | never beats the rule | beats the rule | median acceleration (of those that do) |
+|---|---:|---:|---:|---:|---:|
+| 1% | 0.1239 | 6.9% (99/1442) | 226/237 (95.4%) | 10/237 (4.2%) | 1.5 weeks |
+| 5% | 0.0714 | 17.1% (247/1442) | 153/237 (64.6%) | 71/237 (30.0%) | 2.0 weeks |
+| 10% | 0.0383 | 32.0% (462/1442) | 83/237 (35.0%) | 139/237 (58.6%) | 2.0 weeks |
+
+At every false-alarm rate checked, the **majority of events get zero
+benefit over the naive silence rule** — 5% FAR (a reasonable operational
+choice) beats the rule for only 30% of events, and even then the median
+gain is 2 weeks, p75 = 3 weeks, max = 17 weeks (a long tail, not the
+typical case). Reaching a majority (58.6%) requires a 10% FAR, which costs
+a 32% seller-level false-alarm rate — a third of healthy sellers flagged
+at least once. **The honest headline, if this holds up: "accelerates
+confirmation by a median of ~2 weeks, for a minority of cases, at a
+reasonable false-alarm rate" — not "predicts distress in advance."**
+Full numbers: `figures/phase2_acceleration_vs_rule.json`.
+
+#### 3. Timeboxed core-hypothesis check: restrict to actively-trading rows — result caveated, likely still contaminated
+
+`src/phase2_active_only_ablation.py`: refit restricted to rows with
+`order_volume_level > 0`, relabelled as "event within next 8 weeks" (the
+at-event-week label is unusable under this filter — it's always
+volume-zero by construction). Result: **test AUC = 0.730** (train 0.772),
+n=25,780 test rows / 658 positive.
+
+**This number should not be read at face value — checked directly and
+found a likely confound before reporting it as clean.** `order_volume_level`
+is a trailing 4-week *pooled* average (D8), so it stays above zero for
+2-3 weeks *after* a seller's actual last order — verified on 5 sample
+events directly (e.g. seller `002100f7...`: `last_active_week`=2018-04-15,
+`order_volume_level` is still 0.75 that week, 0.75 the week after, 0.50
+two weeks after, and only reaches exactly 0 at four weeks after). The
+"event within 8 weeks" label window (`last_active_week` through
+`last_active_week`+7) overlaps almost entirely with this echo period.
+**So `order_volume_level > 0` did not cleanly exclude "recently gone
+quiet" rows — it let several weeks of decaying-toward-zero silence back
+in**, which is close to the same signal D13/D14§1 already showed is easy
+to detect. That's the likely reason 0.730 is so much higher than
+§1's clean last-order-anchored numbers (0.53-0.59): §1 uses a single row
+strictly *before* the last order (no echo possible, by construction);
+this check's label window mostly sits *after* it.
+
+**Conclusion: §1's last-order-anchored curve is the trustworthy version
+of this question, and it says no — no discriminative power detected while
+a seller is still visibly, currently trading, at any of the horizons
+tested (1-8 weeks).** This check does not overturn that; if anything, the
+mechanism found for its own inflated number reinforces it. A corrected
+version (require the *current single week's* raw order count > 0, not the
+trailing pooled level, or just restrict to rows several weeks clear of
+`last_active_week`) is the obvious next step, not done here — timeboxed,
+and instructed to report before fixing.
+
+**Bottom line across all three: no evidence survives that this model
+provides genuine multi-week advance warning.** What does survive: a
+real but modest ability to detect distress 1-2 weeks before the N=8 rule
+would confirm it anyway, for a minority of cases, at a cost in false
+alarms. That is a different, smaller claim than the project's premise, and
+the README needs to say so if Phase 3/4 proceed on the current feature
+set and label. Not decided here.

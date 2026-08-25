@@ -1,0 +1,50 @@
+{
+  "0.01": {
+    "threshold": 0.12387875074753213,
+    "seller_level_false_alarm_rate": {
+      "n_censored_sellers": 1442,
+      "n_flagged_at_least_once": 99,
+      "seller_level_false_alarm_rate": 0.06865464632454923
+    },
+    "n_events": 237,
+    "n_never_flagged_by_event_week": 226,
+    "n_flagged_at_confirmation_only": 1,
+    "n_flagged_earlier": 10,
+    "acceleration_weeks_median": 1.5,
+    "acceleration_weeks_p25": 1.0,
+    "acceleration_weeks_p75": 2.75,
+    "acceleration_weeks_max": 11.0
+  },
+  "0.05": {
+    "threshold": 0.0714345244288553,
+    "seller_level_false_alarm_rate": {
+      "n_censored_sellers": 1442,
+      "n_flagged_at_least_once": 247,
+      "seller_level_false_alarm_rate": 0.17128987517337033
+    },
+    "n_events": 237,
+    "n_never_flagged_by_event_week": 153,
+    "n_flagged_at_confirmation_only": 13,
+    "n_flagged_earlier": 71,
+    "acceleration_weeks_median": 2.0,
+    "acceleration_weeks_p25": 1.0,
+    "acceleration_weeks_p75": 3.0,
+    "acceleration_weeks_max": 17.0
+  },
+  "0.1": {
+    "threshold": 0.03832388807061718,
+    "seller_level_false_alarm_rate": {
+      "n_censored_sellers": 1442,
+      "n_flagged_at_least_once": 462,
+      "seller_level_false_alarm_rate": 0.32038834951456313
+    },
+    "n_events": 237,
+    "n_never_flagged_by_event_week": 83,
+    "n_flagged_at_confirmation_only": 15,
+    "n_flagged_earlier": 139,
+    "acceleration_weeks_median": 2.0,
+    "acceleration_weeks_p25": 1.0,
+    "acceleration_weeks_p75": 4.0,
+    "acceleration_weeks_max": 17.0
+  }
+}

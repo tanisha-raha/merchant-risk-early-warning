@@ -1,0 +1,26 @@
+{
+  "primary_n": 8,
+  "horizon_weeks": 8,
+  "train_rows": 34171,
+  "train_positives": 1250,
+  "test_rows": 25780,
+  "test_positives": 658,
+  "train_eval": {
+    "n": 34171,
+    "n_events": 1250,
+    "auc": 0.7718755080343852,
+    "log_loss": 0.13976579205859538,
+    "brier": 0.03375337074245198,
+    "mean_predicted": 0.036555241292869564,
+    "actual_rate": 0.03658072634690234
+  },
+  "test_eval": {
+    "n": 25780,
+    "n_events": 658,
+    "auc": 0.7296999759713632,
+    "log_loss": 0.12872225577583438,
+    "brier": 0.02868620588196549,
+    "mean_predicted": 0.06384341950239997,
+    "actual_rate": 0.02552366175329713
+  }
+}
