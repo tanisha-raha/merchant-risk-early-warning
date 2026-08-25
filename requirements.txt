@@ -1,0 +1,13 @@
+# Core pipeline (Phases 0-4, run.sh)
+pandas>=3.0
+numpy>=2.4
+scikit-learn>=1.9
+matplotlib>=3.10
+pyyaml>=6.0
+
+# Dev / reproducibility (run.sh)
+pytest>=9.1
+ruff>=0.16
+
+# Demo only (app.py) -- not used by run.sh, see README "Interactive demo"
+streamlit>=1.58

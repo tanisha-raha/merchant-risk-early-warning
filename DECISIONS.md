@@ -1006,3 +1006,69 @@ properly cross-validated, early-stopped, hyperparameter-searched GBM is
 what would be built next if this result needed to bear more weight than
 a capacity check. Not done here; logistic regression remains the primary
 model throughout this project regardless.
+
+### D25 — Interactive demo: reads artefacts, computes nothing new
+
+`app.py` (Streamlit, single file) + `src/prepare_demo_data.py` (one-time
+prep, not in `run.sh`). The prep script does the only legitimate round of
+computation, reusing the already-fitted primary model, the already-fit
+D21 isotonic calibrator, and the already-established D16/D21 cost
+economics exactly — no new modeling decision anywhere in it. It writes
+three files `app.py` then only reads:
+
+- `figures/demo_test_predictions.csv` (34,853 rows) — every test-period
+  row's calibrated hazard plus each of the 37 features' *exact* linear
+  contribution to the score (coefficient × standardised value — exact
+  for a linear model, not an approximation). `app.py` computes "what
+  changed since last week" by subtracting two rows of this table —
+  arithmetic on precomputed numbers, not re-inference.
+- `figures/demo_seller_gmv.csv` (3,065 rows) — `policy.per_seller_weekly_gmv`,
+  reused verbatim.
+- `figures/demo_event_acceleration.csv` (711 = 237 events × 3 FAR points)
+  — reuses `policy.score_event_histories` /
+  `acceleration_weeks_at_threshold` with the calibrator, the same
+  mechanism `phase4_calibrated_sweep.py` already used for the aggregate
+  D21 numbers, kept here at per-event granularity.
+
+**Verified before treating it as done, not assumed:** ran the app
+through `streamlit.testing.v1.AppTest` (executes the script in-process,
+surfaces exceptions directly, no browser/websocket needed) across the
+default view, an explicit event merchant, an explicit censored merchant,
+a week change (exercising the "last week" delta path), and both other
+FAR operating points (1%, 10%) — no exceptions in any case. The dynamic
+honesty banner was checked to actually change with FAR, not just
+render once: at 10% FAR it correctly reports 65/237 (27%) never flagged,
+158/237 (67%) beat the rule by a median of 2.0 weeks, matching
+`demo_event_acceleration.csv` exactly.
+
+**One consequence worth naming:** the demo's acceleration banner is
+built on the *calibrated* model (D21), which is measurably more
+favourable than the uncalibrated D14 §2 numbers quoted in README Section
+3/4 (at 5% FAR: 58% never-flagged / 36% beats-rule / 6% ties, vs. the
+uncalibrated 65%/30%/5%). This is not an inconsistency — D21 already
+established the calibrated result is more favourable, not less — but the
+demo and the README's headline prose cite different (both real, both
+sourced) numbers at the same FAR, deliberately: the README's Section 3
+headline uses the same uncalibrated numbers as D13's original audit for
+continuity with that section's own methodology, while the demo — built
+entirely on calibrated scores throughout — reports what its own
+underlying data actually shows, rather than a hardcoded string that
+could drift from what a user could verify by opening
+`demo_event_acceleration.csv` directly.
+
+Two required honesty elements from the instruction, both implemented as
+non-collapsible `st.warning`/`st.info` banners rather than optional
+detail: the minority-benefit acceleration result (dynamic per selected
+FAR) and the top-decile calibration caveat (D19's numbers, static).
+Kept deliberately plain per instruction ("cut it" if a panel looks more
+impressive than the evidence supports) — no gauges, no 0-100 risk
+scores, no colour-coded risk badges; hazard is shown as a plain
+percentage via `st.metric`, and the reserve recommendation is described
+explicitly as a binary threshold policy with a fixed reserve percentage,
+not the continuous hazard-to-reserve surface the brief originally
+specified and D15 explicitly did not build.
+
+`requirements.txt` added (didn't exist before) covering both the core
+pipeline and the demo, with the demo's one dependency (`streamlit`)
+commented as demo-only. `run.sh` unchanged — neither `app.py` nor
+`src/prepare_demo_data.py` are called from it, per instruction.

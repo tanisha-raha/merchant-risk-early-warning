@@ -423,3 +423,34 @@ rather than Olist's e-commerce proxy:
   not built this round since it wasn't in this phase's scope, and now
   informed by evidence (the model has near-zero net effect on this group
   either way) rather than the assumption that motivated asking for it.
+
+## Interactive demo
+
+`app.py` is a Streamlit demonstration of the decision this project
+evaluated — select a test-set merchant, see its calibrated hazard, what
+changed since last week and which features moved it, the recommended
+reserve action at a chosen false-alarm rate, and the estimated cost
+trade-off. It is a presentation of the results already reported above,
+not a new analysis and not a production system: the two required
+honesty checks (this section's own opening two paragraphs) are the same
+ones from Sections 3 and 5 — the minority-benefit acceleration result and
+the top-decile calibration caveat — surfaced as banners that don't
+collapse or hide.
+
+**Run it:**
+
+```bash
+pip install -r requirements.txt
+python src/prepare_demo_data.py   # one-time: materialises figures/demo_*.csv
+                                   # from the already-fitted model + calibrator (D21) --
+                                   # reuses existing functions, no new modeling
+streamlit run app.py
+```
+
+`app.py` itself reads only pre-computed files (`figures/demo_*.csv`,
+`figures/phase3_far_sweep.csv`, `figures/phase4_calibrated_sweep.csv`,
+`figures/phase4_precision_recall.csv`, `config/costs.yaml`) — it does not
+fit, score, or sweep anything at runtime. `src/prepare_demo_data.py` is
+deliberately **not** part of `run.sh`: `run.sh` is the reproducibility
+path for every number in this document, and stays that way; the demo is
+a separate, optional artefact with its own one-time setup step.

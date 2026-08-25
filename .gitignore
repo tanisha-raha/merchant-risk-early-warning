@@ -7,3 +7,9 @@ BRIEF.md
 .claude/
 .pytest_cache/
 .ruff_cache/
+.streamlit/
+
+# Demo data (src/prepare_demo_data.py output) -- regenerable bulk data for
+# app.py, not reported findings; see README "Interactive demo". The
+# per-row predictions file alone is ~30MB, too large to track sensibly.
+figures/demo_*.csv
