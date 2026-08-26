@@ -377,45 +377,57 @@ properly tuned nonlinear model could do (Section 8).
 
 ## 7. Failure slices and the fairness disparity
 
-*This section's economics are pre-calibration (D20 predates D21) and
-have not been re-run on the calibrated model used in Sections 4-5 —
-found during a consistency pass, flagged rather than silently left
-inconsistent (`DECISIONS.md` D26). The qualitative findings below
-(tenure inertia, the two losing categories) are not expected to reverse
-— D21 showed calibration makes the aggregate economics more favourable,
-not less — but the exact margins in this section have not been checked
-against the calibrated scores and should not be assumed to match Section
-4's numbers precisely.*
+*This section is calibrated (D21), matching Sections 3-5 and the demo.
+It was not at first — the original pass (D20) predates calibration, and
+the mismatch was found and flagged during the Section 3-5 consistency
+pass, then re-run rather than left as a caveat. D20's original,
+uncalibrated numbers are preserved in `DECISIONS.md` D20, not overwritten;
+`DECISIONS.md` D27 records exactly what changed. Two slices flip
+conclusion under calibration — reported below, not buried.*
 
 Extended Section 4's economics to four slice dimensions — tenure at test
 start, merchant size (weekly GMV quartile), dominant product category,
 and order-volume decile, all assigned per seller — at the 5%
-false-alarm rate used throughout (`DECISIONS.md` D20,
+false-alarm rate used throughout (`DECISIONS.md` D20, D27,
 `figures/phase4_slices.png`).
 
 Size and volume-decile: the model beats the rule in every slice, no
-exceptions. Two dimensions did not clear that bar:
+exceptions, calibrated or not. Two dimensions did not clear that bar:
 
-**Tenure — the model is inert for the largest single group of merchants
-in the dataset, not harmful to them, but not useful either.** New sellers
+**Tenure — still inert for the largest single group of merchants in the
+dataset, not harmful to them, but not useful either.** New sellers
 (under 13 weeks of tenure at the start of the test window) are 1,361 of
 3,065 sellers — 44% of everyone in the panel, the largest tenure band by
-a wide margin. They technically lose to the rule, by R$0.01 per 1,000
-merchant-weeks — three orders of magnitude smaller than every other
-slice's margin, established sellers (-R$29.8) and veterans (-R$362.6)
-included. Few new sellers get flagged and few of their eventual failures
-get accelerated, so the honest read is that the tool has close to nothing
-to say about the largest cohort of merchants on the platform, not that it
-actively burdens them.
+a wide margin. They technically lose to the rule, by R$0.02 per 1,000
+merchant-weeks (was R$0.005 pre-calibration) — still four to five orders
+of magnitude smaller than every other slice's margin, established
+sellers (-R$52.9) and veterans (-R$445.4) included, both of which
+strengthened under calibration. Few new sellers get flagged and few of
+their eventual failures get accelerated, so the honest read is unchanged:
+the tool has close to nothing to say about the largest cohort of
+merchants on the platform, not that it actively burdens them.
 
-**Category — two real losing slices, not sample-size artefacts.**
-Filtering to categories with at least 20 sellers (below that, a single
-false alarm against zero events flips the sign trivially, which is not a
-finding), 9 of 28 categories lose to the rule. The two most credible on
-sample size: **`auto`** (210 sellers, the second-largest category in the
-dataset, +R$1.88/1,000 merchant-weeks) and **`electronics`** (42 sellers,
-+R$1.88/1,000 merchant-weeks). No mechanism investigated for *why* these
-categories specifically lose — a natural next check, not done here.
+**Category — calibration flips two of the nine originally-losing slices
+to winning; seven remain.** Filtering to categories with at least 20
+sellers (below that, a single false alarm against zero events flips the
+sign trivially, which is not a finding), 7 of 28 categories now lose to
+the rule (was 9). Both flips go the same direction, losing → winning:
+**`auto`** (210 sellers, the second-largest category in the dataset)
+moves from +R$1.88 to **-R$122.60** per 1,000 merchant-weeks, and
+**`musical_instruments`** (38 sellers) moves from +R$3.07 to -R$10.10.
+`auto` was D20's most sample-size-credible losing category and is now a
+decisive win — it should no longer be called a losing slice.
+
+**`electronics` (42 sellers) is the one finding that survives**: +R$1.88
+pre-calibration to +R$2.18 calibrated, materially unchanged, and now the
+largest real category still losing. The other losing categories at this
+sample floor are all smaller and on 0-3 events each: `watches_gifts`
+(52), `construction_tools_construction` (50), `unknown` (63, a
+missing-data catch-all, not a real category), `consoles_games` (23),
+`drinks` (21), `kitchen_dining_laundry_garden_furniture` (21). No
+mechanism investigated for *why* `electronics` specifically loses, or
+why `auto` and `musical_instruments` sat close enough to the win/lose
+boundary to flip — a natural next check, not done here.
 
 ![Slice economics by category](figures/phase4_slices_category_clean.png)
 

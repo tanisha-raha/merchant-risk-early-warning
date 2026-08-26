@@ -11,6 +11,14 @@ this slice, or does it lose? "Lose to the rule" is necessarily economic
 here, not AUC-based -- the rule has no AUC of its own (it's
 deterministic), so a slice-level comparison against it has to use the
 same net-cost accounting Phase 3 used for the whole population.
+
+Scores through the D21 isotonic calibrator, matching every other
+headline number in the project (DECISIONS.md D26/D27) -- the original
+version of this script (D20) scored with raw predictions, which was
+correct when written (D21 didn't exist yet) but left this section on a
+different operating configuration than the rest of the README once
+calibration became standard. D20's original numbers are preserved in
+DECISIONS.md, not overwritten; this is the corrected re-run.
 """
 
 from __future__ import annotations
@@ -28,6 +36,7 @@ import matplotlib.pyplot as plt
 from features import build_features
 from model import PRIMARY_N, TEST_CUTOFF, run_for_n
 from panel import build_panel
+from phase4_calibrated_sweep import fit_calibrator
 from policy import (
     acceleration_weeks_at_threshold,
     load_costs,
@@ -145,10 +154,16 @@ def main() -> None:
     costs = load_costs()
 
     fit = run_for_n(panel, features_df, PRIMARY_N)
+    calibrator = fit_calibrator(fit)
     slices = assign_seller_slices(panel, features_df)
 
     histories, events = score_event_histories(fit, features_df)
+    for hist in histories.values():
+        if len(hist):
+            hist["score"] = calibrator.predict(hist["score"].to_numpy())
+
     censored_rows = score_censored_rows(fit, features_df)
+    censored_rows["score"] = calibrator.predict(censored_rows["score"].to_numpy())
     weekly_gmv = per_seller_weekly_gmv(panel)
     censored_rows = censored_rows.assign(weekly_gmv=censored_rows["seller_id"].map(weekly_gmv))
     event_gmv = events.index.to_series().map(weekly_gmv)
@@ -202,10 +217,35 @@ def main() -> None:
         ax.set_title(col)
         ax.set_ylabel("net Δcost / 1000 mw (R$)\nred = model loses")
         ax.tick_params(axis="x", rotation=60, labelsize=7)
-    fig.suptitle(f"Slice economics at FAR={PRIMARY_FAR:.0%} (red = model loses to N=8 rule)", y=1.01)
+    fig.suptitle(
+        f"Slice economics at FAR={PRIMARY_FAR:.0%}, calibrated model (red = model loses to N=8 rule)", y=1.01
+    )
     fig.tight_layout()
     fig.savefig("figures/phase4_slices.png", dpi=150, bbox_inches="tight")
     print("wrote figures/phase4_slices.png")
+
+    # Readable, README-embedded version of the category panel alone: 70
+    # categories at rotated x-tick labels (the 2x2 grid above) is illegible.
+    # Horizontal bars, filtered to the same >=20-seller floor the README
+    # text uses, sorted by margin. Not previously reproducible from this
+    # script -- the file existed but nothing under src/ regenerated it
+    # (DECISIONS.md D27); folded in here so a re-run keeps it in sync.
+    cat_df = all_results["category"]
+    cat_df = cat_df[cat_df["n_sellers"] >= MIN_SELLERS_FOR_SLICE].sort_values(
+        "net_delta_per_1000_merchant_weeks_reais", ascending=True
+    )
+    fig2, ax2 = plt.subplots(figsize=(9, max(4, 0.3 * len(cat_df))))
+    colors2 = ["#4C72B0" if w else "#C44E52" for w in cat_df["model_wins"]]
+    ax2.barh(cat_df["slice"].astype(str), cat_df["net_delta_per_1000_merchant_weeks_reais"], color=colors2)
+    ax2.axvline(0, color="black", linewidth=1)
+    ax2.set_xlabel("net Δcost / 1,000 merchant-weeks (R$)\nblue = model wins, red = model loses to N=8 rule")
+    ax2.set_title(
+        f"Category economics at FAR={PRIMARY_FAR:.0%}, calibrated model "
+        f"(categories with ≥{MIN_SELLERS_FOR_SLICE} sellers)"
+    )
+    fig2.tight_layout()
+    fig2.savefig("figures/phase4_slices_category_clean.png", dpi=150, bbox_inches="tight")
+    print("wrote figures/phase4_slices_category_clean.png")
 
 
 if __name__ == "__main__":

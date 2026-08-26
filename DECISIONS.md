@@ -1142,3 +1142,67 @@ against calibrated scores and the README says so.
 - Spot-checked `figures/demo_event_acceleration.csv` (the demo's own
   data file) against the new README numbers directly — 58.2%/35.9%/5.9%
   at FAR=5% rounds to the 58%/36%/6% now in Section 3, exact match.
+
+### D27 — Slice analysis re-run calibrated: `auto` and `musical_instruments` flip from losing to winning
+
+`src/phase4_slices.py` closes the inconsistency D26 flagged but did not
+fix: the script now scores events, histories, and censored rows through
+the D21 isotonic calibrator before computing per-slice economics, same
+as Sections 3-5. **D20's original uncalibrated numbers are not
+overwritten** — they stay in D20, above, as the record of what was true
+before calibration was applied here; this entry records what changed and
+why, per instruction. Method: backed up the pre-rerun CSVs before
+running, then did a programmatic merge on `model_wins` per slice per
+dimension across all four CSVs rather than eyeballing the tables, so a
+flip couldn't be missed or hallucinated.
+
+**Size and volume-decile: no change.** The model still wins every slice
+in both dimensions, no exceptions — magnitudes increased across the
+board (e.g. size Q4: -R$117.9 → -R$163.5/1000mw), consistent with D21's
+finding that calibration made the aggregate economics more favourable,
+not less.
+
+**Tenure: no flip, conclusion unchanged.** New sellers (<13wk,
+1,361/3,065 — still the largest cohort) go from +R$0.005 to
++R$0.021/1000mw — nominally larger but still four to five orders of
+magnitude below established (+R$29.8 → -R$52.9) and veteran (-R$362.6 →
+-R$445.4) sellers, both of which strengthened. The model remains
+essentially inert, not harmful, for the largest group of merchants in
+the dataset — exactly the finding the user asked to check survived, and
+it does.
+
+**Category: 2 of 9 losing slices flip to winning; 7 remain.** Programmatic
+comparison found flips only here, both losing → winning, none in the
+other direction:
+
+| category | sellers | events | net Δcost/1000mw, D20 (uncalibrated) | net Δcost/1000mw, calibrated | flip |
+|---|---|---|---|---|---|
+| `auto` | 210 | 10 | +R$1.88 | **-R$122.60** | loses → wins |
+| `musical_instruments` | 38 | 5 | +R$3.07 | **-R$10.10** | loses → wins |
+| `electronics` | 42 | 3 | +R$1.88 | +R$2.18 | stays losing |
+
+`auto` is the significant one: it was D20's largest-by-sample-size
+losing category (second-largest category in the dataset overall, 210
+sellers) and is now a decisive win, by a wide margin relative to its
+old magnitude. `musical_instruments` flips the same direction on a
+smaller base. Neither flip is investigated mechanistically — same
+timebox limitation as D20 — but the direction is consistent with D21:
+calibration made the model's economics more favourable overall, and
+these two categories were close to the win/lose boundary at 9 events or
+fewer, exactly where a shift in score distribution would be expected to
+move the sign.
+
+`electronics` does not flip and is now the largest-by-sample-size
+losing category that survives from D20's original two. The full ≥20-seller
+losing set shrinks from 9 to 7: `electronics` (42), `watches_gifts` (52),
+`construction_tools_construction` (50), `unknown` (63, not a real
+category — a missing-data catch-all), `consoles_games` (23), `drinks`
+(21), `kitchen_dining_laundry_garden_furniture` (21) — each still on 0-3
+events, the same small-N caveat D20 raised.
+
+**Answering the user's two specific questions:** the new-seller cohort
+stays inert, not harmed (tenure — no flip, margin still negligible
+relative to other bands). Of the two categories D20 called "most
+credible": `electronics` stays losing; `auto` does not — it flips to a
+clear win. That flip is reported in the README (Section 7) as
+instructed.
