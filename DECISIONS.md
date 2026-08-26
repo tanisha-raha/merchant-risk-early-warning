@@ -1045,16 +1045,15 @@ render once: at 10% FAR it correctly reports 65/237 (27%) never flagged,
 built on the *calibrated* model (D21), which is measurably more
 favourable than the uncalibrated D14 §2 numbers quoted in README Section
 3/4 (at 5% FAR: 58% never-flagged / 36% beats-rule / 6% ties, vs. the
-uncalibrated 65%/30%/5%). This is not an inconsistency — D21 already
-established the calibrated result is more favourable, not less — but the
-demo and the README's headline prose cite different (both real, both
-sourced) numbers at the same FAR, deliberately: the README's Section 3
-headline uses the same uncalibrated numbers as D13's original audit for
-continuity with that section's own methodology, while the demo — built
-entirely on calibrated scores throughout — reports what its own
-underlying data actually shows, rather than a hardcoded string that
-could drift from what a user could verify by opening
-`demo_event_acceleration.csv` directly.
+uncalibrated 65%/30%/5%). ~~This is not an inconsistency — ... deliberately~~
+
+**Superseded by D26, below.** On reflection this framing was wrong: two
+different numbers for the same quantity in two places a reviewer will
+both look at is a credibility problem regardless of both being real or
+both being sourced — "deliberate" doesn't fix that, it just explains it.
+D26 corrects this by making the README's headline numbers the calibrated
+ones throughout, matching the demo, with the uncalibrated numbers kept
+only where explicitly labelled as the pre-calibration comparison.
 
 Two required honesty elements from the instruction, both implemented as
 non-collapsible `st.warning`/`st.info` banners rather than optional
@@ -1072,3 +1071,74 @@ specified and D15 explicitly did not build.
 pipeline and the demo, with the demo's one dependency (`streamlit`)
 commented as demo-only. `run.sh` unchanged — neither `app.py` nor
 `src/prepare_demo_data.py` are called from it, per instruction.
+
+### D26 — README headline made calibrated throughout; consistency pass
+
+**Closing D25's mismatch.** Per instruction: the calibrated model is
+this project's established operating configuration (D21), so the
+README's headline acceleration and economics numbers now match the demo
+exactly, not just agree in direction.
+
+**Changed, with the mechanical reason each needed to change:**
+- **Section 3** (headline lead-time result): 30%/65%/5% → **36%/58%/6%**
+  at 5% FAR (median acceleration unchanged at 2.0 weeks — only the
+  *shares* moved). One sentence added stating which split is calibrated
+  and where the uncalibrated one now lives (Section 5), so this doesn't
+  need repeating as a caveat at every subsequent mention.
+- **Section 4** (economic comparison): the headline table and its
+  `figures/readme_model_vs_rule.png` figure are now calibrated —
+  events-accelerated 26/85/158 (was 10/71/139), net Δcost -R$16.50/
+  -R$98.03/-R$155.33 per 1,000 merchant-weeks (was -R$8.12/-R$74.29/
+  -R$142.25), seller-level FAR 11.5%/19.4%/36.9% (was 6.9%/17.1%/32.0%).
+  `src/phase4_presentation_figures.py`'s `fig3_model_vs_rule()` rewritten
+  to score through the D21 calibrator (previously used raw scores,
+  itself the source of D25's mismatch) and regenerated.
+- **Section 5** (calibration): gained an explicit pre-calibration
+  comparison table (the numbers Section 4 used to show), rather than
+  only narrating that calibration helped without the reader being able
+  to see both numbers side by side.
+
+**Not changed, and why that's correct rather than an oversight:**
+Section 6's ablation figures and numbers (AUC-based) needed no change —
+AUC is invariant to any monotonic recalibration by construction (it
+depends only on rank order, which isotonic calibration preserves), so
+there was never an uncalibrated/calibrated distinction to reconcile
+there. Checked, not assumed: this is a property of AUC, not something
+that needed verifying against the actual numbers.
+
+**Consistency pass — one further real inconsistency found, not fixed
+this round, flagged in the README (Section 7) and here:** Section 7's
+slice economics (`src/phase4_slices.py`, D20) score events and censored
+rows with **raw, uncalibrated** predictions — no calibrator is applied
+anywhere in that script, confirmed by inspection, not assumed. D20 was
+written before D21 existed, so this wasn't a lapse at the time, but it
+means Section 7 now sits on a different operating configuration than
+Sections 3-5, the exact shape of problem D25 was. Not re-run this round
+(re-running would change every margin in Section 7 — tenure, size,
+category, volume-decile — not just relabel them, which is a bigger job
+than this consistency pass). Labelled explicitly in the README instead
+of left silently inconsistent. Expectation, not a checked claim: since
+calibration made the aggregate economics more favourable (D21), the
+qualitative findings (tenure inertia, `auto`/`electronics` losing) are
+unlikely to reverse — but the exact margins have not been verified
+against calibrated scores and the README says so.
+
+**Everything else checked and found consistent:**
+- `figures/phase4_precision_recall.csv` / README Section 5's
+  precision/recall table: already calibrated (D23), thresholds match
+  D21's exactly (0.2000/0.0545/0.0404) — no drift.
+- Section 4's sensitivity/tornado analysis (D17): confirmed to be
+  pre-calibration (reads `figures/phase3_far_sweep.csv`, not the
+  calibrated sweep) — labelled explicitly in the README rather than
+  silently left ambiguous, without re-deriving new breakeven numbers
+  this round (a real follow-up, not done: re-run D17 on the calibrated
+  sweep).
+- DECISIONS.md's own D13/D14/D16 entries were not edited — they are a
+  chronological log of what was true when written (before D21 existed),
+  correctly stated for their own point in the project's history. Only
+  D25's specific "not an inconsistency" claim was struck through and
+  corrected, since that one was a live claim about the current state of
+  the README, not a historical record.
+- Spot-checked `figures/demo_event_acceleration.csv` (the demo's own
+  data file) against the new README numbers directly — 58.2%/35.9%/5.9%
+  at FAR=5% rounds to the 58%/36%/6% now in Section 3, exact match.

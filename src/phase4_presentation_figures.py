@@ -12,6 +12,7 @@ from pathlib import Path
 
 import matplotlib
 import numpy as np
+import pandas as pd
 
 matplotlib.use("Agg")
 import matplotlib.gridspec as gridspec
@@ -20,7 +21,9 @@ import matplotlib.pyplot as plt
 from features import build_features
 from model import PRIMARY_N, TEST_CUTOFF, predict, run_for_n, transform_features
 from panel import build_panel
-from phase2_acceleration_vs_rule import acceleration_for_events, compute_threshold
+from phase2_acceleration_vs_rule import compute_threshold
+from phase4_calibrated_sweep import fit_calibrator
+from policy import acceleration_weeks_at_threshold, score_event_histories
 
 FIG_DIR = Path("figures")
 
@@ -185,6 +188,11 @@ def fig2_ablation() -> None:
 
 
 def fig3_model_vs_rule() -> None:
+    """Uses the CALIBRATED model (D21's established operating
+    configuration), not raw scores -- matches the demo (app.py,
+    figures/demo_event_acceleration.csv) exactly, so this figure and the
+    demo can't drift into reporting different numbers for the same
+    quantity (DECISIONS.md D26)."""
     raw_dir = Path("data/raw")
     panel = build_panel(raw_dir)
     features_df = build_features(raw_dir)
@@ -192,16 +200,30 @@ def fig3_model_vs_rule() -> None:
     clf, scaler, feature_cols, freq_map, labels = (
         fit["_clf"], fit["_scaler"], fit["_feature_cols"], fit["_freq_map"], fit["_labels"]
     )
+    calibrator = fit_calibrator(fit)
 
     censored = labels[~labels["event_B"]]
     neg_rows = features_df[
         features_df["seller_id"].isin(censored.index) & (features_df["week"] > TEST_CUTOFF)
     ].copy()
     neg_scored = transform_features(neg_rows, freq_map)
-    neg_scores = predict(clf, scaler, neg_scored, feature_cols)
+    neg_scores = calibrator.predict(predict(clf, scaler, neg_scored, feature_cols))
     threshold = compute_threshold(neg_scores, PRIMARY_FAR)
 
-    acc_df = acceleration_for_events(fit, features_df, threshold)
+    histories, events = score_event_histories(fit, features_df)
+    for hist in histories.values():
+        if len(hist):
+            hist["score"] = calibrator.predict(hist["score"].to_numpy())
+    acc_weeks = acceleration_weeks_at_threshold(histories, events, threshold)
+
+    rows = []
+    for seller_id in events.index:
+        hist = histories[seller_id]
+        above = hist.loc[hist["score"] >= threshold, "week"]
+        alarm_week = above.min() if len(above) else pd.NaT
+        rows.append({"seller_id": seller_id, "model_alarm_week": alarm_week, "acceleration_weeks": acc_weeks.loc[seller_id]})
+    acc_df = pd.DataFrame(rows)
+
     n_total = len(acc_df)
     never = int(acc_df["model_alarm_week"].isna().sum())
     earlier = acc_df[acc_df["model_alarm_week"].notna() & (acc_df["acceleration_weeks"] > 0)]
@@ -234,7 +256,8 @@ def fig3_model_vs_rule() -> None:
     for spine in ax1.spines.values():
         spine.set_visible(False)
     ax1.set_title(
-        f"At a 5% false-alarm rate, what happens to all {n_total} test-period cessations?",
+        f"At a 5% false-alarm rate (calibrated model), what happens to all {n_total} "
+        "test-period cessations?",
         fontsize=13, loc="left", fontweight="bold",
     )
 
@@ -244,7 +267,7 @@ def fig3_model_vs_rule() -> None:
     ax2.hist(finite, bins=range(0, int(finite.max()) + 2), color="#55A868", edgecolor="white")
     median = finite.median()
     ax2.axvline(median, color="black", linestyle="--", linewidth=1.5, label=f"median = {median:.1f} weeks")
-    ax2.set_xlabel("weeks earlier than the N=8 rule (for the 30% that do beat it)")
+    ax2.set_xlabel(f"weeks earlier than the N=8 rule (for the {len(earlier) / n_total:.0%} that do beat it)")
     ax2.set_ylabel("events")
     ax2.set_title("For the minority that benefit: how much earlier?", fontsize=11, loc="left")
     ax2.legend()

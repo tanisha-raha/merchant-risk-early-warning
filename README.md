@@ -124,14 +124,26 @@ What the model can do is **detect that a seller has already gone quiet**,
 and detect it faster than a payments team manually waiting out a fixed
 eight-week silence rule would. The honest headline sentence, replacing
 "predicts distress N weeks in advance": **at a 5% false-alarm rate, the
-model beats the naive eight-week silence rule for 30% of cessations, by a
+model beats the naive eight-week silence rule for 36% of cessations, by a
 median of 2.0 weeks — and provides no benefit at all over the naive rule
-for the other 65%** (`DECISIONS.md` D14 §2, D19). The lead-time
-distribution is right-skewed with a long tail out to 17 weeks for a
-minority of cases, but the median case is a two-week head start, not the
-multi-week advance warning the project set out to find. The 65% figure is
-not a footnote — it is most of what happens, and it is shown that way at
-the top of the next section, not buried in a caption.
+for the other 58%** (the remaining 6% are flagged the same week the rule
+fires — neither an early win nor a miss; `DECISIONS.md` D21, D26). The
+lead-time distribution is right-skewed with a long tail out to 17 weeks
+for a minority of cases,
+but the median case is a two-week head start, not the multi-week advance
+warning the project set out to find. The 58% figure is not a footnote —
+it is most of what happens, and it is shown that way at the top of the
+next section, not buried in a caption.
+
+*A note on which numbers are which, stated once here and not repeated as
+a caveat everywhere below: this 36%/58%/6% split is on the calibrated
+model — D21 established calibration as this project's operating
+configuration, and this is what the interactive demo (`app.py`) also
+reports, so the two agree. The pre-calibration split was 30%/65%/5%
+(`DECISIONS.md` D14 §2) — a real, previously-reported number, not wrong,
+just measured before calibration; it appears clearly labelled as the
+"pre-calibration comparison" in Section 5, where D21's calibration check
+is discussed, and nowhere else in this document.*
 
 ## 4. Economic comparison
 
@@ -149,18 +161,19 @@ rule any of those four baselines would have to beat too, and the one
 already running today in this problem's static-reserve framing.
 
 Swept the row-level false-alarm rate from 1% to 10% and priced both
-sides in R$ per 1,000 merchant-weeks (`DECISIONS.md` D16,
-`figures/phase3_far_sweep.png`): the model-based policy beats the rule
-**at every false-alarm rate tested**, and the margin widens as the rate
-loosens — from -R$8.12/1,000 merchant-weeks at 1% FAR to
--R$142.25/1,000 merchant-weeks at 10% FAR (negative = the model saves
-money).
+sides in R$ per 1,000 merchant-weeks, **on the calibrated model**
+(`DECISIONS.md` D21, D26 — this project's operating configuration; the
+pre-calibration numbers are in Section 5, clearly labelled, not here):
+the model-based policy beats the rule **at every false-alarm rate
+tested**, and the margin widens as the rate loosens — from
+-R$16.50/1,000 merchant-weeks at 1% FAR to -R$155.33/1,000 merchant-weeks
+at 10% FAR (negative = the model saves money).
 
 | FAR | events accelerated | net Δcost / 1,000 merchant-weeks | seller-level FAR |
 |---:|---:|---:|---:|
-| 1% | 10/237 | -R$8.12 | 6.9% |
-| 5% | 71/237 | -R$74.29 | 17.1% |
-| 10% | 139/237 | -R$142.25 | 32.0% |
+| 1% | 26/237 | -R$16.50 | 11.5% |
+| 5% | 85/237 | -R$98.03 | 19.4% |
+| 10% | 158/237 | -R$155.33 | 36.9% |
 
 **That result is far more robust than it has any right to look, given
 Section 3's near-null discrimination — checked, not assumed**
@@ -174,6 +187,14 @@ merchant's own settlement, not a debt that needs collecting, so near-full
 capture is structurally the realistic end of that parameter, not the
 optimistic one. A tornado plot across generous, honestly-wide ranges
 picked before seeing where breakeven fell never crosses zero.
+
+*This sensitivity analysis (D17) was run on the pre-calibration sweep
+(D16) and has not been re-run on the calibrated numbers above — flagged
+here rather than left implicit (`DECISIONS.md` D26). Since calibration
+made the raw economics more favourable, not less (Section 5), there is
+no reason to expect the breakeven values to move in the direction that
+would matter (i.e. become more plausible) — but that is a reasonable
+expectation, not a checked number, and shouldn't be read as one.*
 
 ![Sensitivity tornado](figures/phase4_tornado.png)
 
@@ -204,9 +225,21 @@ prediction going in was that the economic margin would shrink but
 survive, given how much headroom Section 4's sensitivity analysis showed.
 **That prediction did not hold — the calibrated sweep beat the
 uncalibrated one at every single false-alarm rate tested, with no sign
-flip anywhere.** The mechanism, worked out after seeing the result: the
-FAR sweep was never actually probability-weighted (cost and benefit are
-both computed from realised outcomes, using the score only to rank rows
+flip anywhere.**
+
+**Pre-calibration comparison, labelled as such** — the numbers Section 4
+would have shown before D21, and the only place in this document they
+appear:
+
+| FAR | net Δcost / 1,000 mw, pre-calibration | net Δcost / 1,000 mw, calibrated (Section 4) |
+|---:|---:|---:|
+| 1% | -R$8.12 | -R$16.50 |
+| 5% | -R$74.29 | -R$98.03 |
+| 10% | -R$142.25 | -R$155.33 |
+
+The mechanism, worked out after seeing the result: the FAR sweep was
+never actually probability-weighted (cost and benefit are both computed
+from realised outcomes, using the score only to rank rows
 against a threshold), so a monotonic recalibration should have been close
 to a no-op — it wasn't exactly, because isotonic regression is a step
 function and real data produces ties at its plateaus, which shifted which
@@ -343,6 +376,16 @@ specific question, but not the strongest possible test of what a
 properly tuned nonlinear model could do (Section 8).
 
 ## 7. Failure slices and the fairness disparity
+
+*This section's economics are pre-calibration (D20 predates D21) and
+have not been re-run on the calibrated model used in Sections 4-5 —
+found during a consistency pass, flagged rather than silently left
+inconsistent (`DECISIONS.md` D26). The qualitative findings below
+(tenure inertia, the two losing categories) are not expected to reverse
+— D21 showed calibration makes the aggregate economics more favourable,
+not less — but the exact margins in this section have not been checked
+against the calibrated scores and should not be assumed to match Section
+4's numbers precisely.*
 
 Extended Section 4's economics to four slice dimensions — tenure at test
 start, merchant size (weekly GMV quartile), dominant product category,
