@@ -1072,6 +1072,84 @@ pipeline and the demo, with the demo's one dependency (`streamlit`)
 commented as demo-only. `run.sh` unchanged — neither `app.py` nor
 `src/prepare_demo_data.py` are called from it, per instruction.
 
+### D28 — Demo bugfix: FAR selector crash, an empty-looking default, and a visual pass
+
+**Bug: `ZeroDivisionError` on several FAR selector values.** The sidebar's
+FAR options were pulled from `figures/phase4_calibrated_sweep.csv`, which
+has all ten integer-percent points (1-10%). `figures/demo_event_acceleration.csv`
+and `figures/phase4_precision_recall.csv` — both read by the same
+page — only cover the three points D25 actually precomputed (1%/5%/10%;
+`src/prepare_demo_data.py`'s `FAR_POINTS`). Selecting any of the other
+seven produced `accel_at_far` with zero rows, and `n_never / n_events`
+divided by that zero. Root cause was the selector reading from the wrong
+artefact, not a missing guard on one value — fixed by sourcing
+`far_options` from `acceleration["far"].unique()` (the three points
+every other artefact on the page actually covers) instead of the sweep.
+A defensive zero-events branch was added anyway (an explicit "nothing to
+report at this operating point" message) in case the artefacts drift
+apart again — belt and suspenders, not the primary fix.
+
+**Empty-looking default.** The merchant selectbox previously defaulted
+to position 0 of an `event_B`-then-`seller_id` sort, with no guarantee
+that merchant was ever flagged. `default_merchant_and_week()` now picks,
+at the default 5% FAR, a merchant the model actually beats the naive
+rule on — at the *median* acceleration (2 weeks) among such merchants,
+not the most dramatic outlier, so the first screen is representative of
+the banner's own claim rather than cherry-picked to look better than the
+evaluated result. The week defaults to that merchant's model-alarm week,
+so the "Flagged at this FAR?" metric reads Yes on load. Any other
+merchant remains selectable and defaults to its most recent test week,
+same as before.
+
+**Verified before pushing, not assumed:** wrote a throwaway
+`streamlit.testing.v1.AppTest` script (not committed — same as D25's
+verification, which also wasn't a committed pytest file) exercising all
+three FAR options from a fresh app each time, both an explicit event and
+non-event merchant at every FAR, and both endpoints of the week selector
+for each. No exceptions in any of the 21 scenarios. Also checked
+structurally that both required honesty banners (`st.warning` ×2) and
+the dynamic outcomes banner (`st.info`) still render on the default
+path, and that the default merchant/week lands on a flagged, confirmed
+cessation (the "Known outcome" section appears).
+
+**Visual pass**, within the constraints given (no gauges/dials/0-100
+scores/red-amber-green badges/alert icons; colour only where a quantity
+has genuine direction; native Streamlit components over injected CSS):
+
+- Grouped sections with `st.container(border=True)` (merchant snapshot,
+  recommended action, cost trade-off) and `st.columns(..., border=True)`
+  for the metric rows — Streamlit's own bordered-container primitive,
+  not custom CSS.
+- Added a small hazard sparkline (last 12 available weeks,
+  `st.altair_chart`) with a dashed grey reference line at the selected
+  FAR's flag threshold — a factual line already used elsewhere on the
+  page for the flag decision, not a danger-level indicator.
+- Replaced the "what changed since last week" dataframe with a
+  horizontal bar chart of the top 5 signed feature-contribution deltas,
+  coloured by direction (raises/lowers hazard) — the one place colour
+  was used, because a signed contribution genuinely has a direction, per
+  instruction. Two-colour categorical scale, not a stoplight.
+- Removed `delta_color="inverse"` from the hazard metric's week-over-week
+  delta. On reflection this was already a soft version of the thing the
+  instruction rules out: it painted a hazard *increase* red and a
+  *decrease* green, i.e. invented a danger direction for a number the
+  instruction says doesn't have one. Set to `delta_color="off"` (neutral
+  grey) instead — a pre-existing choice from D25, changed here under the
+  same reasoning newly stated, not left as an inconsistency once noticed.
+- Added short `st.sidebar.caption()` helper text under each sidebar
+  control, including a one-line explanation of what FAR means.
+- Both required honesty banners (`st.warning`) kept at their original
+  size and prominence — not shrunk, not moved into an expander — with a
+  plain `st.subheader` placed above each for section hierarchy, not as a
+  replacement for the banner's own weight.
+- Centralised R$ and % formatting through two small helpers (`reais()`,
+  already-existing `far_label()`) instead of ad hoc f-strings at each
+  call site, so decimal-place choices are made once rather than per
+  metric.
+
+Ruff clean, full pytest suite unaffected (`app.py` is not imported by
+anything under `src/` or `tests/`).
+
 ### D26 — README headline made calibrated throughout; consistency pass
 
 **Closing D25's mismatch.** Per instruction: the calibrated model is
