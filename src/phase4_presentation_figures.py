@@ -23,6 +23,7 @@ from model import PRIMARY_N, TEST_CUTOFF, predict, run_for_n, transform_features
 from panel import build_panel
 from phase2_acceleration_vs_rule import compute_threshold
 from phase4_calibrated_sweep import fit_calibrator
+from phase4_train_derived_thresholds import score_train_negative_rows
 from policy import acceleration_weeks_at_threshold, score_event_histories
 
 FIG_DIR = Path("figures")
@@ -187,29 +188,10 @@ def fig2_ablation() -> None:
     print(f"wrote {FIG_DIR / 'readme_ablation.png'}")
 
 
-def fig3_model_vs_rule() -> None:
-    """Uses the CALIBRATED model (D21's established operating
-    configuration), not raw scores -- matches the demo (app.py,
-    figures/demo_event_acceleration.csv) exactly, so this figure and the
-    demo can't drift into reporting different numbers for the same
-    quantity (DECISIONS.md D26)."""
-    raw_dir = Path("data/raw")
-    panel = build_panel(raw_dir)
-    features_df = build_features(raw_dir)
-    fit = run_for_n(panel, features_df, PRIMARY_N)
-    clf, scaler, feature_cols, freq_map, labels = (
-        fit["_clf"], fit["_scaler"], fit["_feature_cols"], fit["_freq_map"], fit["_labels"]
-    )
-    calibrator = fit_calibrator(fit)
-
-    censored = labels[~labels["event_B"]]
-    neg_rows = features_df[
-        features_df["seller_id"].isin(censored.index) & (features_df["week"] > TEST_CUTOFF)
-    ].copy()
-    neg_scored = transform_features(neg_rows, freq_map)
-    neg_scores = calibrator.predict(predict(clf, scaler, neg_scored, feature_cols))
-    threshold = compute_threshold(neg_scores, PRIMARY_FAR)
-
+def _fig3_render(threshold: float, achieved_far: float, subtitle: str, out_name: str, fit, features_df, calibrator) -> None:
+    """Shared rendering for both threshold origins (DECISIONS.md D30) --
+    same composition-bar-plus-histogram this figure has always used, now
+    called once per threshold instead of hardcoding the test-derived one."""
     histories, events = score_event_histories(fit, features_df)
     for hist in histories.values():
         if len(hist):
@@ -256,9 +238,9 @@ def fig3_model_vs_rule() -> None:
     for spine in ax1.spines.values():
         spine.set_visible(False)
     ax1.set_title(
-        f"At a 5% false-alarm rate (calibrated model), what happens to all {n_total} "
-        "test-period cessations?",
-        fontsize=13, loc="left", fontweight="bold",
+        f"{subtitle} (achieved test-set row-level FAR {achieved_far:.1%}) — "
+        f"what happens to all {n_total} test-period cessations?",
+        fontsize=12.5, loc="left", fontweight="bold",
     )
 
     # --- distribution for the ones that DO beat the rule ---
@@ -273,11 +255,63 @@ def fig3_model_vs_rule() -> None:
     ax2.legend()
 
     fig.suptitle("Model vs. the operational baseline (naive N=8 silence rule)", fontsize=14, y=1.0)
-    fig.savefig(FIG_DIR / "readme_model_vs_rule.png", dpi=150, bbox_inches="tight")
-    print(f"wrote {FIG_DIR / 'readme_model_vs_rule.png'}")
+    fig.savefig(FIG_DIR / out_name, dpi=150, bbox_inches="tight")
+    print(f"wrote {FIG_DIR / out_name}")
     print(
-        f"never={never} ({never / n_total:.1%}), ties={ties} ({ties / n_total:.1%}), "
+        f"  never={never} ({never / n_total:.1%}), ties={ties} ({ties / n_total:.1%}), "
         f"earlier={len(earlier)} ({len(earlier) / n_total:.1%})"
+    )
+
+
+def fig3_model_vs_rule() -> None:
+    """Two versions of this figure, both CALIBRATED (D21), differing only
+    in where the nominal-5%-FAR threshold comes from (DECISIONS.md D29/
+    D30): `readme_model_vs_rule.png` uses the TRAIN-derived threshold --
+    this project's headline framing as of D30, since the achieved test FAR
+    it produces (12.0%) differs materially from the 5% nominal target, and
+    that is the more honest, deployment-realistic number.
+    `readme_model_vs_rule_test_derived.png` keeps the original
+    test-quantile threshold (exact 5% test FAR by construction) as the
+    explicitly-labelled comparison. Matches the demo and
+    figures/demo_event_acceleration.csv, which report the same pair
+    (`src/prepare_demo_data.py`)."""
+    raw_dir = Path("data/raw")
+    panel = build_panel(raw_dir)
+    features_df = build_features(raw_dir)
+    fit = run_for_n(panel, features_df, PRIMARY_N)
+    clf, scaler, feature_cols, freq_map, labels = (
+        fit["_clf"], fit["_scaler"], fit["_feature_cols"], fit["_freq_map"], fit["_labels"]
+    )
+    calibrator = fit_calibrator(fit)
+
+    censored = labels[~labels["event_B"]]
+    test_neg_rows = features_df[
+        features_df["seller_id"].isin(censored.index) & (features_df["week"] > TEST_CUTOFF)
+    ].copy()
+    test_neg_scored = transform_features(test_neg_rows, freq_map)
+    test_neg_scores = calibrator.predict(predict(clf, scaler, test_neg_scored, feature_cols))
+    test_threshold = compute_threshold(test_neg_scores, PRIMARY_FAR)
+
+    train_neg = score_train_negative_rows(fit, features_df)
+    train_neg_scores = calibrator.predict(train_neg["score"].to_numpy())
+    train_threshold = compute_threshold(train_neg_scores, PRIMARY_FAR)
+
+    # Achieved test-set row-level FAR under each threshold, on the SAME
+    # test-period censored population either way -- reuse test_neg_scores.
+    test_achieved = float((test_neg_scores >= test_threshold).mean())
+    train_achieved = float((test_neg_scores >= train_threshold).mean())
+
+    print("=== train-derived threshold (headline, D30) ===")
+    _fig3_render(
+        train_threshold, train_achieved,
+        "At a nominal 5% false-alarm rate, threshold chosen from TRAIN data (calibrated model)",
+        "readme_model_vs_rule.png", fit, features_df, calibrator,
+    )
+    print("=== test-derived threshold (comparison) ===")
+    _fig3_render(
+        test_threshold, test_achieved,
+        "At a nominal 5% false-alarm rate, threshold chosen from TEST data (calibrated model)",
+        "readme_model_vs_rule_test_derived.png", fit, features_df, calibrator,
     )
 
 

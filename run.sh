@@ -57,7 +57,10 @@ python3 src/phase4_precision_recall.py
 echo "=== Phase 4: GBM capacity check (DECISIONS.md D24) ==="
 python3 src/phase4_gbm_capacity_check.py
 
-echo "=== Phase 4: README presentation figures (DECISIONS.md D22) ==="
+echo "=== Phase 4: train-derived threshold check (DECISIONS.md D29, D30) ==="
+python3 src/phase4_train_derived_thresholds.py
+
+echo "=== Phase 4: README presentation figures (DECISIONS.md D22, D30) ==="
 python3 src/phase4_presentation_figures.py
 
 echo "done."

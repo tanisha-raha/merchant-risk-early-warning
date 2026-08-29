@@ -1302,20 +1302,23 @@ FAR? Traced the code (`src/policy.py::score_censored_rows`,
 `neg_scores` — the population a FAR quantile is cut from — comes from
 `features_df["week"] > TEST_CUTOFF`, i.e. the same test-period rows
 every downstream number (acceleration, economics, precision/recall) is
-then evaluated on. `threshold = np.quantile(neg_scores, 1 - far)` is
+then evaluated on. ~~`threshold = np.quantile(neg_scores, 1 - far)` is
 constructed so the achieved row-level FAR equals the target *by
-construction*, on this exact test set. TRAIN is used to fit the model
-coefficients and the D21 isotonic calibrator; it plays no role in
-picking the threshold.
+construction*, on this exact test set.~~ **Corrected in D30: this is not
+quite right either — see D30's tie-plateau finding below.** TRAIN is
+used to fit the model coefficients and the D21 isotonic calibrator; it
+plays no role in picking the threshold.
 
 This does not leak event-row information (only censored/negative rows
 define the threshold) and doesn't affect the ablation's AUC-based
 numbers (rank-based, threshold-independent). But it does mean "5% FAR"
 is not an independently-validated operating point that happens to land
-near 5% on unseen data — it's exact by construction on the test set
-itself, and the README did not say so anywhere before this entry
-(checked: no occurrence of "chosen on the test set" or equivalent
-language in any FAR-related passage). **Not fixed this round** — the
+near 5% on unseen data — ~~it's exact by construction on the test set
+itself~~ **it's close to the target by construction on the test set
+itself, but not exact even there — D30**, and the README did not say so
+anywhere before this entry (checked: no occurrence of "chosen on the
+test set" or equivalent language in any FAR-related passage). **Not
+fixed this round** — the
 two options put to the user (state explicitly vs. move threshold
 selection to a separate validation split) trade off honesty-by-labelling
 against a materially bigger rebuild (every Section 4/5/7 number would
@@ -1391,4 +1394,124 @@ Verified: `ruff check src/ tests/ app.py` clean; AppTest re-run across
 all three FAR options and both an event and non-event merchant (mirrors
 D28's method) — no exceptions. `pytest` unaffected (no `src/`/`tests/`
 files touched this entry).
+
+### D30 — Train-derived thresholds bound the test-set selection concern D29 raised: it's real, it moves the headline, and a second issue was found underneath it
+
+**Instruction, precisely:** don't rebuild against a third validation
+split, don't leave D29 at disclosure either. Derive thresholds from
+TRAIN negatives at the nominal 1%/5%/10% quantiles, apply them unchanged
+to test, report the achieved test-set FAR (row- and seller-level) both
+origins produce, and promote whichever set of numbers turns out to be
+the honest headline once checked — train-derived if the numbers moved
+materially, test-derived (kept, not deleted) if they were close.
+
+**Method (`src/phase4_train_derived_thresholds.py`, new script, not a
+rewrite of any committed one).** `score_train_negative_rows()` mirrors
+`policy.score_censored_rows()` exactly — same `_labels`/`event_B`
+globally-censored-seller population, same feature/score pipeline — with
+`week <= TEST_CUTOFF` instead of `> TEST_CUTOFF`, so the two threshold
+origins differ only in which window supplies the quantile population,
+nothing else. Thresholds calibrated the same way as everywhere else in
+this project (D21's isotonic calibrator, fit on TRAIN only, applied
+post-hoc). Applied to the *same* TEST-period scoring already used for
+the existing D21 sweep — reused, not recomputed — via three small
+functions (`economics_at_threshold`, `precision_recall_at_threshold`,
+`status_breakdown_at_threshold`) that accept an external threshold
+instead of deriving one internally, factored out of
+`phase4_calibrated_sweep.run_calibrated_sweep` and
+`phase4_precision_recall.py`'s logic rather than reimplemented.
+
+**Base-rate drift, quantified as instructed, not explained away:**
+row-level event rate train 0.5305% → test 0.6800%, a 1.28x ratio
+(`fit["drift"]`, already computed by `model.py`, just not previously
+surfaced next to this question). This is the mechanism: a threshold
+calibrated to TRAIN's lower-hazard score distribution sits well inside
+TEST's higher-hazard distribution rather than at its edge, so it flags
+more of TEST than intended.
+
+**Result: the numbers moved materially, not marginally.**
+
+| nominal FAR | threshold origin | threshold | achieved row FAR | achieved seller FAR | events accelerated | net Δcost/1000mw | precision | recall |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|
+| 1% | test-derived | 0.200000 | 2.5% | 11.5% | 26/237 | -R$16.50 | 3.5% | 13.1% |
+| 1% | train-derived | 0.051335 | 7.3% | 23.9% | 107/237 | -R$110.88 | 4.1% | 47.3% |
+| 5% | test-derived | 0.054545 | 5.9% | 19.4% | 85/237 | -R$98.03 | 4.2% | 38.8% |
+| 5% | train-derived | 0.040000 | 12.0% | 37.0% | 158/237 | -R$155.33 | 3.7% | 70.0% |
+| 10% | test-derived | 0.040389 | 12.0% | 36.9% | 158/237 | -R$155.33 | 3.7% | 70.0% |
+| 10% | train-derived | 0.012987 | 15.6% | 47.2% | 207/237 | -R$189.60 | 3.8% | 94.9% |
+
+Largest deviation: nominal 1% train-derived achieves 7.3% row-level
+FAR — 7.3x the target. At nominal 5%, the gap is achieved 12.0% vs. a
+5% target (2.4x), and the train-derived "5%" row lands almost exactly
+on the test-derived "10%" row (thresholds 0.040000 vs. 0.040389, one
+step apart on the calibrator's own discrete score levels — every other
+number in that pair matches to within rounding). **No sign flip
+anywhere: the model beats the naive rule at every nominal FAR under
+both origins.** What moved is the *size* of the win, not its direction —
+net Δcost at nominal 5% goes from -R$98.03 to -R$155.33/1000mw, a
+1.6x change, not a reversal. One number is invariant to the choice: the
+median acceleration among events the model does beat the rule on is 2.0
+weeks either way — the drift is entirely in how many events clear that
+bar, not in how early the ones that do get caught.
+
+**Decision, per instruction: train-derived numbers become the headline;
+test-derived stay as the labelled comparison, not deleted.** README
+Sections 3 and 4 rewritten accordingly — Section 3's bold headline
+sentence now reads 67%/27%/6% (was 36%/58%/6%), Section 4 leads with the
+train-derived table and keeps the test-derived one immediately below,
+explicitly labelled. `src/phase4_presentation_figures.py`'s
+`fig3_model_vs_rule()` split into a shared `_fig3_render()` called
+twice: `figures/readme_model_vs_rule.png` now renders the train-derived
+breakdown (the figure embedded at the top of Section 4), and
+`figures/readme_model_vs_rule_test_derived.png` is the new comparison
+figure, generated by the same script, referenced but not embedded (two
+large figures back to back was worse than one embed plus a text
+pointer). Both regenerated and their printed never/ties/beats counts
+spot-checked against `phase4_train_derived_thresholds.csv` — exact
+match.
+
+**Second, independent finding, uncovered while building the check —
+D29's own "exact by construction" claim about the test-derived
+threshold was itself wrong, corrected above (struck through, not
+silently rewritten).** Verified directly (not assumed) by computing
+`(calibrated_scores >= threshold).mean()` against the same population
+the threshold was quantiled from: the achieved row-level FAR for the
+*test-derived* thresholds is 2.5%/5.9%/12.0% at nominal 1%/5%/10% — not
+1.0%/5.0%/10.0%. Same mechanism D21/D23 already documented for
+non-monotonic precision: isotonic calibration collapses the censored-row
+population's scores into 46 discrete levels, `np.quantile`'s
+interpolated cut lands at or near one of them, and "≥ that level" sweeps
+in the whole tied block, which does not generally sum to exactly the
+requested fraction. Test-derived is still much closer to nominal than
+train-derived (worst case 1.2x vs. 7.3x), so the *comparative* finding
+above is unaffected — but "exact by construction" was an unchecked
+overclaim, present in D29 and in the README before this entry, now
+corrected in both. Lesson applied directly: this is exactly why the
+check was run empirically rather than reasoned about from the formula.
+
+**Explicitly flagged, not fixed this round — same "flag rather than
+silently drift" pattern D26 used for Section 7 before D27 caught it up:**
+
+- **Section 7 (slice analysis, D20/D27)** still scores against the
+  test-derived 5% threshold. Re-running it against the train-derived
+  threshold would re-derive every per-slice margin, not just relabel
+  them — a job the size of D27 itself. Caveat added to the README
+  section stating the gap and the (unchecked) expected direction.
+- **The interactive demo (`app.py`, D25/D28)** still reports
+  `demo_event_acceleration.csv`'s test-derived numbers (36%/58%/6%),
+  which Section 3 no longer treats as the headline. `src/prepare_demo_data.py`
+  would need its threshold source changed and its artefacts regenerated —
+  flagged in the README's "Interactive demo" section rather than left
+  silently mismatched.
+- **The D17 sensitivity/tornado analysis** is unaffected in substance —
+  it tests cost-*parameter* breakeven ranges, orthogonal to where the FAR
+  *threshold* comes from — but its existing pre-calibration caveat
+  (D26) now needs to disclaim against two calibrated tables instead of
+  one; wording updated in the README, analysis itself not re-run.
+
+Verified: `ruff check src/ tests/ app.py` clean; `phase4_train_derived_thresholds.py`
+and `phase4_presentation_figures.py` both run end-to-end and their
+printed output cross-checked against each other and against the
+committed CSVs/JSON. `pytest` unaffected (no test file exercises either
+script).
 
