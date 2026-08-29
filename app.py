@@ -150,9 +150,9 @@ def main() -> None:
     # ---- sidebar: operating point ----
     st.sidebar.header("Operating point")
     st.sidebar.caption(
-        "False-alarm rate (FAR): the share of merchants who never actually fail that the "
-        "model flags anyway. Higher FAR catches more real cessations, earlier, at the cost "
-        "of more false alarms on healthy merchants."
+        "False-alarm rate (FAR), row-level: the share of a healthy seller's individual weekly "
+        "snapshots the model flags anyway (not the share of merchants — see below). Higher FAR "
+        "catches more real cessations, earlier, at the cost of more false alarms."
     )
     far_options = sorted(acceleration["far"].unique())
     far = st.sidebar.selectbox(
@@ -161,7 +161,28 @@ def main() -> None:
         index=far_options.index(DEFAULT_FAR),
         format_func=far_label,
     )
-    threshold = float(sweep.loc[sweep["false_alarm_rate"] == far, "threshold"].iloc[0])
+    far_row = sweep.loc[sweep["false_alarm_rate"] == far].iloc[0]
+    threshold = float(far_row["threshold"])
+
+    # Row-level and seller-level FAR are different quantities -- one
+    # healthy seller contributes many weekly rows, so "5% FAR" flags a
+    # much larger share of distinct sellers at least once. Shown together
+    # here rather than just the row-level number, matching README Section
+    # 3's footnote so this distinction is visible where FAR is chosen.
+    st.sidebar.markdown(f"**Weekly (row-level) false-alarm rate:** {far_label(far)}")
+    st.sidebar.caption(
+        f"Equivalent seller-level FAR in test set: **{far_row['seller_level_false_alarm_rate']:.1%}** "
+        "— the share of healthy sellers flagged at least once, not the share of weekly rows."
+    )
+    pr_row_far = precision_recall[precision_recall["far"] == far]
+    if len(pr_row_far):
+        pr = pr_row_far.iloc[0]
+        alerts_per_true = pr["n_flagged"] / pr["true_events_caught"] if pr["true_events_caught"] else float("nan")
+        st.sidebar.caption(
+            f"At this FAR: **{int(pr['n_flagged']):,} flagged rows**, **{int(pr['true_events_caught'])} "
+            f"true events caught**, **{pr['precision']:.1%} precision**, **{pr['recall']:.1%} recall** "
+            f"— roughly {alerts_per_true:.0f} alerts per true cessation row caught."
+        )
 
     accel_at_far = acceleration[acceleration["far"] == far]
     n_events = len(accel_at_far)
@@ -246,11 +267,14 @@ def main() -> None:
 
         hazard_this_week = float(row["calibrated_hazard"])
         hazard_last_week = float(prev_row["calibrated_hazard"]) if prev_row is not None else None
+        # The delta is a difference of two percentages, i.e. percentage
+        # points, not itself a percentage -- ".2%" formatting on the raw
+        # difference understated it by ~100x. "pp" makes the unit explicit.
         col_a.metric(
             "Calibrated hazard estimate, this week",
             f"{hazard_this_week:.2%}",
             delta=(
-                f"{(hazard_this_week - hazard_last_week):+.2%} vs. last week"
+                f"{(hazard_this_week - hazard_last_week) * 100:+.2f} pp vs. last week"
                 if hazard_last_week is not None
                 else None
             ),
@@ -282,9 +306,14 @@ def main() -> None:
             f"line: this FAR's flag threshold ({threshold:.4f})."
         )
 
-    # ---- recommended action ----
+    # ---- simulated policy action ----
     with st.container(border=True):
-        st.subheader("Recommended action")
+        st.subheader("Simulated policy action")
+        st.caption(
+            "The model determines only the flag (hazard ≥ threshold, above). The reserve "
+            "percentage applied when flagged is a fixed `config/costs.yaml` assumption, not "
+            "something the model sizes or has any say over — see Section 2, limitation 2."
+        )
         if flagged:
             st.write(
                 f"**Hold an additional {reserve_pct:.0%} reserve** on this merchant's settlements "
@@ -295,8 +324,7 @@ def main() -> None:
         st.caption(
             "This is a binary threshold policy — flag or don't — with a fixed reserve percentage "
             "when flagged, not a continuous hazard-to-reserve formula (that fuller design was "
-            "scoped out; DECISIONS.md D15). The reserve percentage itself is an assumed parameter "
-            "from `config/costs.yaml`, not measured."
+            "scoped out; DECISIONS.md D15)."
         )
 
     # ---- what changed since last week ----
@@ -375,8 +403,8 @@ def main() -> None:
             )
 
     with st.expander("Population-level economics at this FAR (from the evaluated test set)"):
-        far_row = sweep[sweep["false_alarm_rate"] == far].iloc[0]
-        pr_row = precision_recall[precision_recall["far"] == far]
+        # far_row already computed above (sidebar); pr_row_far reused here too.
+        pr_row = pr_row_far
         st.write(
             f"- Net Δcost vs. the naive rule: **{reais(far_row['net_delta_cost_per_1000_merchant_weeks_reais'])} "
             "per 1,000 merchant-weeks** (negative = the model-based policy saves money; DECISIONS.md D16/D21)"

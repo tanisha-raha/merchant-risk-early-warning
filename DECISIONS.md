@@ -991,11 +991,17 @@ learner that's marginally better at recognising silence and marginally
 worse before it begins is not evidence of missed early-warning signal —
 it's the same finding restated in a different model.
 
-**Conclusion: the ceiling is in the data and features, not the model
-class.** A nonlinear, interaction-capturing learner given the identical
-inputs does not clear the ~0.68-0.70 pooled ceiling or the ~0.52-0.59
-advance-warning ceiling by a margin that survives scrutiny. This
-strengthens D18's negative result rather than reopening it.
+**Conclusion, restated at the strength the evidence actually supports
+(amended below, D29):** ~~the ceiling is in the data and features, not
+the model class~~ — a nonlinear, interaction-capturing learner given the
+identical inputs does not clear the ~0.68-0.70 pooled ceiling or the
+~0.52-0.59 advance-warning ceiling by a margin that survives scrutiny.
+This strengthens D18's negative result rather than reopening it. What
+this single run does *not* establish is a class-wide ceiling: one
+untuned, default-hyperparameter GBM is evidence that these features
+carry limited predictive information, not proof that no model class
+could do better — that would need the tuned comparison D24's own
+limitation paragraph, below, already flags as not done.
 
 **Limitation, stated plainly rather than left implicit:** both models
 were run on default hyperparameters, with no early-stopping tuning for
@@ -1071,84 +1077,6 @@ specified and D15 explicitly did not build.
 pipeline and the demo, with the demo's one dependency (`streamlit`)
 commented as demo-only. `run.sh` unchanged — neither `app.py` nor
 `src/prepare_demo_data.py` are called from it, per instruction.
-
-### D28 — Demo bugfix: FAR selector crash, an empty-looking default, and a visual pass
-
-**Bug: `ZeroDivisionError` on several FAR selector values.** The sidebar's
-FAR options were pulled from `figures/phase4_calibrated_sweep.csv`, which
-has all ten integer-percent points (1-10%). `figures/demo_event_acceleration.csv`
-and `figures/phase4_precision_recall.csv` — both read by the same
-page — only cover the three points D25 actually precomputed (1%/5%/10%;
-`src/prepare_demo_data.py`'s `FAR_POINTS`). Selecting any of the other
-seven produced `accel_at_far` with zero rows, and `n_never / n_events`
-divided by that zero. Root cause was the selector reading from the wrong
-artefact, not a missing guard on one value — fixed by sourcing
-`far_options` from `acceleration["far"].unique()` (the three points
-every other artefact on the page actually covers) instead of the sweep.
-A defensive zero-events branch was added anyway (an explicit "nothing to
-report at this operating point" message) in case the artefacts drift
-apart again — belt and suspenders, not the primary fix.
-
-**Empty-looking default.** The merchant selectbox previously defaulted
-to position 0 of an `event_B`-then-`seller_id` sort, with no guarantee
-that merchant was ever flagged. `default_merchant_and_week()` now picks,
-at the default 5% FAR, a merchant the model actually beats the naive
-rule on — at the *median* acceleration (2 weeks) among such merchants,
-not the most dramatic outlier, so the first screen is representative of
-the banner's own claim rather than cherry-picked to look better than the
-evaluated result. The week defaults to that merchant's model-alarm week,
-so the "Flagged at this FAR?" metric reads Yes on load. Any other
-merchant remains selectable and defaults to its most recent test week,
-same as before.
-
-**Verified before pushing, not assumed:** wrote a throwaway
-`streamlit.testing.v1.AppTest` script (not committed — same as D25's
-verification, which also wasn't a committed pytest file) exercising all
-three FAR options from a fresh app each time, both an explicit event and
-non-event merchant at every FAR, and both endpoints of the week selector
-for each. No exceptions in any of the 21 scenarios. Also checked
-structurally that both required honesty banners (`st.warning` ×2) and
-the dynamic outcomes banner (`st.info`) still render on the default
-path, and that the default merchant/week lands on a flagged, confirmed
-cessation (the "Known outcome" section appears).
-
-**Visual pass**, within the constraints given (no gauges/dials/0-100
-scores/red-amber-green badges/alert icons; colour only where a quantity
-has genuine direction; native Streamlit components over injected CSS):
-
-- Grouped sections with `st.container(border=True)` (merchant snapshot,
-  recommended action, cost trade-off) and `st.columns(..., border=True)`
-  for the metric rows — Streamlit's own bordered-container primitive,
-  not custom CSS.
-- Added a small hazard sparkline (last 12 available weeks,
-  `st.altair_chart`) with a dashed grey reference line at the selected
-  FAR's flag threshold — a factual line already used elsewhere on the
-  page for the flag decision, not a danger-level indicator.
-- Replaced the "what changed since last week" dataframe with a
-  horizontal bar chart of the top 5 signed feature-contribution deltas,
-  coloured by direction (raises/lowers hazard) — the one place colour
-  was used, because a signed contribution genuinely has a direction, per
-  instruction. Two-colour categorical scale, not a stoplight.
-- Removed `delta_color="inverse"` from the hazard metric's week-over-week
-  delta. On reflection this was already a soft version of the thing the
-  instruction rules out: it painted a hazard *increase* red and a
-  *decrease* green, i.e. invented a danger direction for a number the
-  instruction says doesn't have one. Set to `delta_color="off"` (neutral
-  grey) instead — a pre-existing choice from D25, changed here under the
-  same reasoning newly stated, not left as an inconsistency once noticed.
-- Added short `st.sidebar.caption()` helper text under each sidebar
-  control, including a one-line explanation of what FAR means.
-- Both required honesty banners (`st.warning`) kept at their original
-  size and prominence — not shrunk, not moved into an expander — with a
-  plain `st.subheader` placed above each for section hierarchy, not as a
-  replacement for the banner's own weight.
-- Centralised R$ and % formatting through two small helpers (`reais()`,
-  already-existing `far_label()`) instead of ad hoc f-strings at each
-  call site, so decimal-place choices are made once rather than per
-  metric.
-
-Ruff clean, full pytest suite unaffected (`app.py` is not imported by
-anything under `src/` or `tests/`).
 
 ### D26 — README headline made calibrated throughout; consistency pass
 
@@ -1284,3 +1212,183 @@ relative to other bands). Of the two categories D20 called "most
 credible": `electronics` stays losing; `auto` does not — it flips to a
 clear win. That flip is reported in the README (Section 7) as
 instructed.
+
+### D28 — Demo bugfix: FAR selector crash, an empty-looking default, and a visual pass
+
+**Bug: `ZeroDivisionError` on several FAR selector values.** The sidebar's
+FAR options were pulled from `figures/phase4_calibrated_sweep.csv`, which
+has all ten integer-percent points (1-10%). `figures/demo_event_acceleration.csv`
+and `figures/phase4_precision_recall.csv` — both read by the same
+page — only cover the three points D25 actually precomputed (1%/5%/10%;
+`src/prepare_demo_data.py`'s `FAR_POINTS`). Selecting any of the other
+seven produced `accel_at_far` with zero rows, and `n_never / n_events`
+divided by that zero. Root cause was the selector reading from the wrong
+artefact, not a missing guard on one value — fixed by sourcing
+`far_options` from `acceleration["far"].unique()` (the three points
+every other artefact on the page actually covers) instead of the sweep.
+A defensive zero-events branch was added anyway (an explicit "nothing to
+report at this operating point" message) in case the artefacts drift
+apart again — belt and suspenders, not the primary fix.
+
+**Empty-looking default.** The merchant selectbox previously defaulted
+to position 0 of an `event_B`-then-`seller_id` sort, with no guarantee
+that merchant was ever flagged. `default_merchant_and_week()` now picks,
+at the default 5% FAR, a merchant the model actually beats the naive
+rule on — at the *median* acceleration (2 weeks) among such merchants,
+not the most dramatic outlier, so the first screen is representative of
+the banner's own claim rather than cherry-picked to look better than the
+evaluated result. The week defaults to that merchant's model-alarm week,
+so the "Flagged at this FAR?" metric reads Yes on load. Any other
+merchant remains selectable and defaults to its most recent test week,
+same as before.
+
+**Verified before pushing, not assumed:** wrote a throwaway
+`streamlit.testing.v1.AppTest` script (not committed — same as D25's
+verification, which also wasn't a committed pytest file) exercising all
+three FAR options from a fresh app each time, both an explicit event and
+non-event merchant at every FAR, and both endpoints of the week selector
+for each. No exceptions in any of the 21 scenarios. Also checked
+structurally that both required honesty banners (`st.warning` ×2) and
+the dynamic outcomes banner (`st.info`) still render on the default
+path, and that the default merchant/week lands on a flagged, confirmed
+cessation (the "Known outcome" section appears).
+
+**Visual pass**, within the constraints given (no gauges/dials/0-100
+scores/red-amber-green badges/alert icons; colour only where a quantity
+has genuine direction; native Streamlit components over injected CSS):
+
+- Grouped sections with `st.container(border=True)` (merchant snapshot,
+  recommended action, cost trade-off) and `st.columns(..., border=True)`
+  for the metric rows — Streamlit's own bordered-container primitive,
+  not custom CSS.
+- Added a small hazard sparkline (last 12 available weeks,
+  `st.altair_chart`) with a dashed grey reference line at the selected
+  FAR's flag threshold — a factual line already used elsewhere on the
+  page for the flag decision, not a danger-level indicator.
+- Replaced the "what changed since last week" dataframe with a
+  horizontal bar chart of the top 5 signed feature-contribution deltas,
+  coloured by direction (raises/lowers hazard) — the one place colour
+  was used, because a signed contribution genuinely has a direction, per
+  instruction. Two-colour categorical scale, not a stoplight.
+- Removed `delta_color="inverse"` from the hazard metric's week-over-week
+  delta. On reflection this was already a soft version of the thing the
+  instruction rules out: it painted a hazard *increase* red and a
+  *decrease* green, i.e. invented a danger direction for a number the
+  instruction says doesn't have one. Set to `delta_color="off"` (neutral
+  grey) instead — a pre-existing choice from D25, changed here under the
+  same reasoning newly stated, not left as an inconsistency once noticed.
+- Added short `st.sidebar.caption()` helper text under each sidebar
+  control, including a one-line explanation of what FAR means.
+- Both required honesty banners (`st.warning`) kept at their original
+  size and prominence — not shrunk, not moved into an expander — with a
+  plain `st.subheader` placed above each for section hierarchy, not as a
+  replacement for the banner's own weight.
+- Centralised R$ and % formatting through two small helpers (`reais()`,
+  already-existing `far_label()`) instead of ad hoc f-strings at each
+  call site, so decimal-place choices are made once rather than per
+  metric.
+
+Ruff clean, full pytest suite unaffected (`app.py` is not imported by
+anything under `src/` or `tests/`).
+
+### D29 — FAR threshold methodology disclosed (not yet resolved); README reframed; app.py precision surfaced
+
+**Open methodological question, answered but not yet acted on.** Asked
+directly: are Section 4/5's FAR thresholds chosen on a held-out
+validation split, or on the test set itself, to hit a target test-set
+FAR? Traced the code (`src/policy.py::score_censored_rows`,
+`run_sweep`; `src/phase4_calibrated_sweep.py`; same pattern in
+`src/phase2_acceleration_vs_rule.py`): **on the test set itself.**
+`neg_scores` — the population a FAR quantile is cut from — comes from
+`features_df["week"] > TEST_CUTOFF`, i.e. the same test-period rows
+every downstream number (acceleration, economics, precision/recall) is
+then evaluated on. `threshold = np.quantile(neg_scores, 1 - far)` is
+constructed so the achieved row-level FAR equals the target *by
+construction*, on this exact test set. TRAIN is used to fit the model
+coefficients and the D21 isotonic calibrator; it plays no role in
+picking the threshold.
+
+This does not leak event-row information (only censored/negative rows
+define the threshold) and doesn't affect the ablation's AUC-based
+numbers (rank-based, threshold-independent). But it does mean "5% FAR"
+is not an independently-validated operating point that happens to land
+near 5% on unseen data — it's exact by construction on the test set
+itself, and the README did not say so anywhere before this entry
+(checked: no occurrence of "chosen on the test set" or equivalent
+language in any FAR-related passage). **Not fixed this round** — the
+two options put to the user (state explicitly vs. move threshold
+selection to a separate validation split) trade off honesty-by-labelling
+against a materially bigger rebuild (every Section 4/5/7 number would
+need re-deriving against a threshold picked on a third split), and which
+one to do is the user's call, not made here. This entry exists so the
+fact is on record regardless of which way that goes.
+
+**README restructured**, per instruction, with numbering and section
+order otherwise unchanged from SPEC.md — **deviation from SPEC's
+README-requirements item 2** ("the limitations, second — before any
+results"): Section 2 now opens with a compact version of the audit
+finding (apparent 0.89–0.97 AUC → chance once corrected — previously
+told in full only in Section 3) before its three limitation bullets,
+rather than opening on disclaimers cold. Limitations reduced from four
+paragraphs to three crisp ones by merging the two domain-mismatch
+paragraphs (marketplace-vs-aggregator business relationship; Brazil-vs-
+India market) into one, since both are facets of the same underlying
+gap. Content preserved, not cut: the 86.2% benign-exit figure, the
+cost-parameter disclosure, and the full domain-mismatch reasoning are
+all still present, just tightened. Section 3's headline sentence gained
+a footnote making the row-level/seller-level FAR distinction explicit at
+its first and most prominent mention (5% row-level ≈ 19.4% seller-level
+at that operating point) — a reader skimming only the bold sentence
+would otherwise read "5% false-alarm rate" as "5% of merchants," which
+is off by roughly 4x at this operating point. Section 4 and 5's
+previously-bare "FAR" table headers renamed to "row-level FAR" for the
+same reason, now that Section 4's table already carried a "seller-level
+FAR" column alongside it. Section 6: the "not a no signal exists"
+paragraph gained a boxed callout (blockquote — a first for this
+document, used because the instruction asked for something visually
+distinct) explaining why the pooled 0.68–0.70 AUC and Section 3's
+0.53–0.59 point-in-time AUC are different questions on the same data,
+not a contradiction. The ablation's closing conclusion — "the ceiling
+here is in the data and features, not in the linearity of the model
+class" — softened to state what one untuned, default-hyperparameter GBM
+run actually supports: evidence pointing toward limited predictive
+information in the features, not proof that linear capacity is the
+bottleneck, since a single untuned run cannot establish a class-wide
+ceiling. D24 above amended to match (struck through, not silently
+rewritten) rather than leaving the two documents making different-
+strength claims about the same result. "Interactive demo" section's
+prose updated to describe what `app.py` now surfaces (below).
+
+**`app.py`:**
+- The week-over-week hazard delta was a difference of two percentages
+  displayed with `%` formatting — numerically already the right
+  magnitude (a 2-percentage-point move printed as "+2.00%"), but the
+  unit label was wrong and readable as a 2% *relative* change. Changed
+  to explicit "+X.XX pp vs. last week" — same number, correct unit.
+- FAR selector now shows, directly beneath it: the row-level FAR
+  (restating the selectbox value), the equivalent seller-level FAR from
+  `phase4_calibrated_sweep.csv`, and that operating point's precision/
+  recall/flagged-row counts from `phase4_precision_recall.csv` — all
+  three previously only reachable via the "Population-level economics"
+  expander, now visible at the point the FAR is actually chosen, not
+  gated behind a click.
+- "Recommended action" renamed to "Simulated policy action," with a new
+  leading caption stating plainly that the model determines only the
+  flag — the reserve percentage applied is a fixed `config/costs.yaml`
+  assumption the model has no say over. The redundant older sentence
+  making the same point lower in the section was removed rather than
+  left duplicated.
+
+**GitHub repository description — not changed by this session.** No
+`gh` CLI and no `GH_TOKEN`/`GITHUB_TOKEN` in this environment, and a
+repo-settings edit is an outward-facing change this session has no way
+to make without one. Exact text handed to the user to apply themselves
+(`gh repo edit --description "..."` or the GitHub web UI), corrected per
+instruction to describe marketplace fulfilment telemetry and a fixed,
+not dynamic, reserve.
+
+Verified: `ruff check src/ tests/ app.py` clean; AppTest re-run across
+all three FAR options and both an event and non-event merchant (mirrors
+D28's method) — no exceptions. `pytest` unaffected (no `src/`/`tests/`
+files touched this entry).
+

@@ -36,61 +36,62 @@ that just watches for eight weeks of silence — and the honest answer,
 worked out in full below, is "modestly, and only if you're honest about
 what 'modestly' means."
 
-## 2. Limitations — read this before any result below
+## 2. What this project found — and the limitations to weigh it against
 
-**The distress label is cessation, not default.** It is defined as eight
-consecutive silent weeks with no orders, confirmed and never reversed
-within the study window (`DECISIONS.md` D3–D6). It is not a chargeback
-event, not a bankruptcy, not a merchant-reported closure — it is "this
-seller stopped placing orders and never came back." Checked directly
-(Phase 0 D-series, `src/phase0_benign_exit.py`): **86.2% of confirmed
-cessations (411 of 477) show no elevated cancellation or late-delivery
-signal in the weeks before they stop** — no visible quality collapse, no
-customer complaints spiking, nothing that looks like failure in progress.
-That is consistent with a large share of "distress events" in this
-dataset being ordinary attrition — a seller moving to another
-marketplace, retiring a side business, running out of seasonal stock —
-not merchant default in any sense a payments team would recognise. Every
-number in this document is a number about *predicting cessation*, not
-about predicting default; the gap between those two things is real and
-unmeasured here.
+**The headline finding, arrived at through two rounds of self-audit, not
+asserted:** a naive read of this project's own model produced AUC
+0.89–0.97 — which looks like strong early-warning prediction. Auditing
+that number by lead time collapsed it to exactly chance (0.499) at the
+point that matters most, because soon-to-fail sellers were scoring
+*below* still-healthy ones there — a sign the measurement, not the
+model, had a problem. It did: that audit's own k was counted from
+confirmation rather than the seller's actual last order, so every point
+except one was already inside the silence period it was supposed to
+precede. Correcting that and re-anchoring to the seller's real last
+order landed the honest result at 0.53–0.59 AUC across every horizon
+tested — still near chance (full detail, Section 3). **That process —
+an apparent strong result, an audit that overturned it, and a second
+flaw found inside the audit itself — is the discipline this document
+tries to apply everywhere else too, including in the three limitations
+below.**
 
-**The cost-model parameters are assumptions, not measurements — every
-economic figure in Sections 4 and 5 is a simulation, not an observed
-loss.** `config/costs.yaml` holds three numbers — the reserve percentage,
-the weekly working-capital cost of holding it, and the fraction of
-accelerated reserve that actually offsets a loss — and none of them come
-from data. Olist has no financing-cost, reserve-program, or write-off
-data to measure them against. No real reserve was ever held, no real
-merchant ever paid a real working-capital cost, and no real shortfall was
-ever avoided anywhere in this document — every R$ figure below is what
+**1. The distress label is cessation, not default.** It is defined as
+eight consecutive silent weeks with no orders, confirmed and never
+reversed (`DECISIONS.md` D3–D6) — not a chargeback, a bankruptcy, or a
+merchant-reported closure. Checked directly (`src/phase0_benign_exit.py`):
+**86.2% of confirmed cessations (411 of 477) show no elevated
+cancellation or late-delivery signal beforehand** — no visible quality
+collapse, nothing that looks like failure in progress — consistent with
+much of this dataset's "distress" being ordinary attrition, not default.
+Every number below is about predicting *cessation*; the gap to default
+is real and unmeasured here.
+
+**2. The cost-model parameters are assumptions, not measurements.**
+`config/costs.yaml`'s three numbers — reserve percentage, weekly
+working-capital cost, benefit-capture rate — do not come from data;
+Olist has no financing-cost, reserve-program, or write-off record to
+check them against. No real reserve was ever held and no real shortfall
+was ever avoided anywhere in this document — every R$ figure is what
 *would* happen under an assumed cost structure applied to *realised*
-cessation outcomes, not a record of money that actually moved. They were
-picked once, documented, and never tuned to reach a particular answer
-(`DECISIONS.md` D16), and Section 4 shows the economic conclusion is
-robust to wide, deliberately generous ranges around them — but "robust to
-a wide range of guesses" is not the same claim as "measured."
+outcomes. Picked once, documented, never tuned to reach a target answer
+(`DECISIONS.md` D16); Section 4 shows the conclusion survives wide,
+generous ranges around them — "robust to a wide range of guesses," not
+the same claim as "measured."
 
-**Marketplace sellers are not payment-aggregator merchants.** Olist
-sellers list goods on a marketplace and are evaluated on delivery and
-customer satisfaction; a payment aggregator's merchants have a fundamentally
-different relationship with the platform — money movement and settlement,
-not fulfilment — and correspondingly different failure modes (fraud,
-insolvency, chargeback floods) and different available data (transaction-
-and settlement-level signals, not order and delivery telemetry). This
-project's entire premise — that payment telemetry predicts merchant
-failure — is tested here on a proxy business relationship, not the
-target one. That gap sits underneath every other limitation in this
-section, not just the dataset's currency and label.
-
-**This is Brazilian e-commerce data (Olist, 2017–2018), in Brazilian
-Real, evaluated for a hypothesis about Indian payments.** Every R$ figure
-in this document is the dataset's real currency, kept that way
-deliberately rather than converted to Rupees — an FX conversion would
-imply a transfer of relevance to a market this data was never collected
-in, which the data cannot support (`DECISIONS.md` D15, D16). Order
-patterns, seasonality, refund norms, and financing costs for Indian
-payments merchants may differ from Brazilian e-commerce sellers in ways
+**3. This is marketplace fulfilment telemetry, from Brazilian
+e-commerce, evaluated for a payment-settlement question in a different
+country.** Two gaps stack here, not one. Olist sellers are scored on
+delivery and customer satisfaction, not settlement — a fundamentally
+different relationship with the platform than a payment aggregator's
+merchants have, with different failure modes (fraud, insolvency,
+chargeback floods, not fulfilment attrition) and different data
+(transaction/settlement signals, not order/delivery telemetry). Layered
+on top: this is Brazilian e-commerce data (Olist, 2017–2018) in
+Brazilian Real, evaluated for a hypothesis about Indian payments — kept
+in R$ deliberately rather than FX-converted, since a conversion would
+imply a relevance this data was never collected to support
+(`DECISIONS.md` D15, D16). Order patterns, seasonality, refund norms,
+and financing costs may differ from Indian payments merchants in ways
 this project cannot check.
 
 ## 3. The headline lead-time result
@@ -123,7 +124,7 @@ close to no signal at any distance tested.
 What the model can do is **detect that a seller has already gone quiet**,
 and detect it faster than a payments team manually waiting out a fixed
 eight-week silence rule would. The honest headline sentence, replacing
-"predicts distress N weeks in advance": **at a 5% false-alarm rate, the
+"predicts distress N weeks in advance": **at a 5% false-alarm rate,¹ the
 model beats the naive eight-week silence rule for 36% of cessations, by a
 median of 2.0 weeks — and provides no benefit at all over the naive rule
 for the other 58%** (the remaining 6% are flagged the same week the rule
@@ -134,6 +135,14 @@ but the median case is a two-week head start, not the multi-week advance
 warning the project set out to find. The 58% figure is not a footnote —
 it is most of what happens, and it is shown that way at the top of the
 next section, not buried in a caption.
+
+¹ *Row-level: the share of a healthy seller's individual weekly
+test-period rows that cross the threshold, not the share of sellers —
+one seller contributes many rows, so this is not "5% of merchants get
+flagged." The equivalent seller-level rate — the share of healthy
+sellers flagged at least once — is 19.4% at this operating point
+(Section 4's "seller-level FAR" column). Every "FAR" figure in this
+document is row-level unless labelled otherwise.*
 
 *A note on which numbers are which, stated once here and not repeated as
 a caveat everywhere below: this 36%/58%/6% split is on the calibrated
@@ -169,7 +178,7 @@ tested**, and the margin widens as the rate loosens — from
 -R$16.50/1,000 merchant-weeks at 1% FAR to -R$155.33/1,000 merchant-weeks
 at 10% FAR (negative = the model saves money).
 
-| FAR | events accelerated | net Δcost / 1,000 merchant-weeks | seller-level FAR |
+| row-level FAR | events accelerated | net Δcost / 1,000 merchant-weeks | seller-level FAR |
 |---:|---:|---:|---:|
 | 1% | 26/237 | -R$16.50 | 11.5% |
 | 5% | 85/237 | -R$98.03 | 19.4% |
@@ -231,7 +240,7 @@ flip anywhere.**
 would have shown before D21, and the only place in this document they
 appear:
 
-| FAR | net Δcost / 1,000 mw, pre-calibration | net Δcost / 1,000 mw, calibrated (Section 4) |
+| row-level FAR | net Δcost / 1,000 mw, pre-calibration | net Δcost / 1,000 mw, calibrated (Section 4) |
 |---:|---:|---:|
 | 1% | -R$8.12 | -R$16.50 |
 | 5% | -R$74.29 | -R$98.03 |
@@ -255,7 +264,7 @@ calibrator (Platt scaling) is the natural follow-up, not attempted here.
 directly, not only implied through AUC, calibration, lead time, and cost
 (`src/phase4_precision_recall.py`, thresholds reused exactly from D21):
 
-| FAR | threshold | flagged | true events caught | false positives | precision | recall |
+| row-level FAR | threshold | flagged | true events caught | false positives | precision | recall |
 |---:|---:|---:|---:|---:|---:|---:|
 | 1% | 0.2000 | 874 | 31 | 843 | 3.5% | 13.1% |
 | 5% | 0.0545 | 2,212 | 92 | 2,120 | 4.2%¹ | 38.8% |
@@ -334,13 +343,28 @@ last-order-anchored point tests across all three tiers, is in
 moderate signal — 0.68–0.70 AUC — about whether an actively-trading
 seller will cease within the next two months, which is itself a more
 useful and more surprising finding than the near-null point-in-time tests
-in Section 3 alone would have suggested (aggregating over an 8-week
-window recovers signal that a single point-in-time snapshot doesn't show,
-because week-to-week order counts here are individually noisy —
-`DECISIONS.md` D18, and Phase 0's F1 on how sparse per-week order volume
-is for most sellers). The finding is specifically that trend and
-acceleration, layered on top of that levels signal, add nothing this
-project could measure.
+in Section 3 alone would have suggested. The finding is specifically that
+trend and acceleration, layered on top of that levels signal, add nothing
+this project could measure.
+
+> **Why 0.68 pooled and 0.53–0.59 point-in-time don't contradict each
+> other.** They answer different questions on the same features and the
+> same model family. The pooled number above asks: *among sellers still
+> placing orders this exact week, does the model separate who ceases
+> within the next 8 weeks from who doesn't* — evaluated in aggregate
+> across that whole 8-week window. Section 3's point-in-time number asks
+> the narrower question a genuine early-warning system actually needs
+> answered: *at one fixed lead time — 1, 2, 4, or 8 weeks before a
+> specific seller's actual last order — can the model already tell that
+> seller apart from one who keeps trading?* Aggregating over an 8-week
+> window recovers signal a single point-in-time snapshot doesn't show,
+> because week-to-week order counts here are individually noisy
+> (`DECISIONS.md` D18; Phase 0's F1 on how sparse per-week order volume
+> is for most sellers). The gap between the two numbers is the gap
+> between "some signal exists somewhere in an 8-week window" and "that
+> signal arrives early enough, at a fixed point, to function as a
+> warning" — and Section 3 already showed the second one is close to
+> absent.
 
 **Capacity check, not a model upgrade: does a nonlinear learner find what
 the linear model missed on the same inputs?** One gradient-boosted model
@@ -367,8 +391,13 @@ is at or below the linear model at three of four. **The GBM is slightly
 better pooled and slightly worse at the advance-warning horizons, which
 is the same finding restated, not a new one: it fits the quiet-detection
 signal (Section 3) somewhat harder than the linear model does, and that
-signal was never early warning to begin with.** Conclusion: the ceiling
-here is in the data and features, not in the linearity of the model class.
+signal was never early warning to begin with.** Conclusion, stated at
+the strength the evidence actually supports: this points more toward
+these features carrying limited predictive information than toward
+linear model capacity being the bottleneck — but one untuned,
+default-hyperparameter GBM run cannot establish a class-wide ceiling on
+its own. A properly tuned nonlinear comparison (Section 8) is the check
+that could actually settle it.
 
 Limitation stated plainly: both models ran on default hyperparameters
 with no early-stopping tuning either way — the right comparison for this
@@ -483,14 +512,22 @@ rather than Olist's e-commerce proxy:
 
 `app.py` is a Streamlit demonstration of the decision this project
 evaluated — select a test-set merchant, see its calibrated hazard, what
-changed since last week and which features moved it, the recommended
-reserve action at a chosen false-alarm rate, and the estimated cost
-trade-off. It is a presentation of the results already reported above,
-not a new analysis and not a production system: the two required
-honesty checks (this section's own opening two paragraphs) are the same
-ones from Sections 3 and 5 — the minority-benefit acceleration result and
-the top-decile calibration caveat — surfaced as banners that don't
-collapse or hide.
+changed since last week and which features moved it, the simulated
+policy action at a chosen row-level false-alarm rate, and the estimated
+cost trade-off. The sidebar states both the row-level FAR and its
+equivalent seller-level rate side by side (not just the row-level
+number — see Section 3's footnote), plus that operating point's
+precision/recall, so the same distinction this document draws in prose
+is visible where the FAR is actually chosen. It is a presentation of
+the results already reported above, not a new analysis and not a
+production system: the two required honesty checks (this section's own
+opening two paragraphs) are the same ones from Sections 3 and 5 — the
+minority-benefit acceleration result and the top-decile calibration
+caveat — surfaced as banners that don't collapse or hide. The "Simulated
+policy action" panel is explicit that the model determines only the
+flag; the reserve percentage applied when flagged is a fixed
+`config/costs.yaml` assumption, not something the model sizes (Section
+2, limitation 2).
 
 **Run it:**
 
