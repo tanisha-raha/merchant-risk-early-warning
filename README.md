@@ -650,24 +650,27 @@ rather than Olist's e-commerce proxy:
 ## Interactive demo
 
 `app.py` is a Streamlit demonstration of the decision this project
-evaluated — select a test-set merchant, see its calibrated hazard, what
-changed since last week and which features moved it, the simulated
-policy action at a chosen row-level false-alarm rate, and the estimated
-cost trade-off. Visual design pass in `DECISIONS.md` D32 — one
-considered theme (`.streamlit/config.toml`), real typographic
-hierarchy, and cards, all built to one hard rule: no gauges, no 0-100
-risk scores, no red/amber/green threat levels, no alert icons, nothing
-implying more confidence or precision than the evidence supports. No
-number or piece of logic on the page changed, only how it's presented.
-The sidebar states the row-level FAR as target and achieved together
-("5% → 5.9%," reading the achieved figure from the same artefact this
-document's Section 4 table reads — an earlier version showed only the
-nominal target, contradicting Section 4's own methodology, fixed in
-`DECISIONS.md` D34) plus the equivalent seller-level rate (Section 3's
-footnote) and that operating point's precision/recall, as a compact
-labelled stat block rather than prose (`DECISIONS.md` D33). It is a
-presentation of the results already reported above, not a new analysis
-and not a production system.
+evaluated — select a test-set merchant from a compact top toolbar (no
+permanent sidebar, `DECISIONS.md` D36), see its full hazard trajectory
+over the test window with the flag threshold, the model's first alarm,
+and (for confirmed cessations) the N=8 rule's confirmation date marked
+directly on the chart, what changed since last week and which features
+moved it, the simulated policy action, and the estimated cost trade-off.
+Built to one hard rule throughout: no gauges, no 0-100 risk scores, no
+red/amber/green threat levels, no alert icons, no categorical risk
+labels ("HIGH RISK" etc.) — status pills state "Flagged"/"Not flagged"
+in one neutral style regardless of value, not a colour-coded severity
+system (`DECISIONS.md` D32, D36). No number or piece of logic on the
+page has changed across any of its visual design passes, only how it's
+presented. The toolbar states the row-level FAR as target and achieved
+together ("5% → 5.9%," reading the achieved figure from the same
+artefact this document's Section 4 table reads — an earlier version
+showed only the nominal target, contradicting Section 4's own
+methodology, fixed in `DECISIONS.md` D34) plus the equivalent
+seller-level rate (Section 3's footnote) and that operating point's
+precision/recall, as a compact labelled stat row rather than prose
+(`DECISIONS.md` D33, D36). It is a presentation of the results already
+reported above, not a new analysis and not a production system.
 
 **Structure (`DECISIONS.md` D33): the merchant view is the primary
 content, one short banner states the single most important honesty

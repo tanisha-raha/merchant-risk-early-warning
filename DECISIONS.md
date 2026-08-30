@@ -1999,3 +1999,140 @@ in total across this entry (one 3-column truncation caught, one
 full-width confirmation, one final full-sidebar check of both blocks
 together). `pytest` unaffected — no `src/`/`tests/` files touched.
 
+### D36 — Layout overhaul: no sidebar, a real hazard trajectory chart, status pills, background-contrast sections
+
+A full restructure of `app.py`'s layout, with three explicit exclusions
+held to throughout. No number, threshold, or piece of evaluated logic
+changed — same artefacts, same computations as D35, only how the page
+is built and laid out.
+
+**Chrome, sidebar, width.** Streamlit's own chrome (deploy button, main
+menu, toolbar actions, status widget, footer) hidden via CSS targeting
+their stable `data-testid`s; the header bar shrunk rather than
+`display:none`'d, so the page doesn't jump on load. Every `st.sidebar.*`
+call removed. `[data-testid="stAppViewBlockContainer"]`'s `max-width`
+set to 100% so the now-sidebar-less page actually uses the full window
+width `layout="wide"` already asked for, rather than sitting in a
+centred column with no sidebar to justify the gutter.
+
+**Toolbar replaces the sidebar.** FAR, merchant, and week selectors
+moved into one `st.container(key="toolbar")` row (`st.columns([1, 2,
+1])`), styled as a slim card. The explanatory captions the sidebar used
+to carry (D33/D35) moved to each selectbox's own `help=` tooltip (the
+"?" icon) instead of being dropped — compact by default, still one
+hover away, not lost. Selectbox creation order (FAR, merchant, week)
+kept identical to the old sidebar's order specifically so the existing
+AppTest verification script's `at.selectbox[0/1/2]` indexing kept
+working without modification.
+
+**Operating-point metrics preserved exactly, per instruction, just
+relocated.** Target row FAR, achieved row FAR (D34), seller FAR,
+precision, recall: five `st.metric`s in one row below the toolbar,
+identical values and sources to D35's sidebar blocks (same
+`achieved_far_lookup` artefact read, same `precision_recall`/`sweep`
+lookups). Alerts count and true-events-caught, previously a sidebar
+metric plus caption (D35), condensed into one caption line under the
+stat row — content preserved, just no longer a separate metric widget,
+since the toolbar's job is to stay compact.
+
+**Status pills — the one place a firm line was drawn.** Three pills,
+one row, identical neutral style regardless of value: "Historical
+replay" (a fact about the demo, not a value that varies), "FAR {X%}"
+(restates the toolbar's own selection, small enough to be useful at a
+glance without opening the toolbar), and "Flagged" / "Not flagged" —
+deliberately the only two words that appear on this pill, ever. No
+"HIGH RISK," no severity tiers, no colour change between the two
+states — checked directly (screenshotted both states, below) that
+"Flagged" and "Not flagged" render pixel-identical apart from the text,
+which is the actual mechanism that keeps this from becoming a
+categorical risk grade in disguise.
+
+**Hazard trajectory chart, ~60% width, real visual weight.** Replaces
+D32's compact axis-free sparkline. Design choice made here, not
+instructed but load-bearing for the rest of this entry: shows the
+merchant's **full** test-window history, not a trailing sample — this
+is what makes "N=8 rule-confirmation date on the chart if it falls
+within range" actually meaningful rather than a coin-flip against an
+arbitrary window. Four things drawn: a dashed horizontal rule at the
+FAR's threshold (unchanged from the old sparkline), a large distinctly-
+styled point at whichever week is selected in the toolbar (ties the
+Week selector's effect visibly to a specific point on the line, not
+just a number elsewhere on the page), a solid vertical rule at the
+model's first alarm — computed directly from `merchant_rows` and the
+current `threshold` (`first week hazard >= threshold`), not only from
+the event-only acceleration artefact, so it works identically for a
+merchant that gets flagged without ever becoming a confirmed cessation
+— and, for confirmed-cessation merchants, a dotted vertical rule at the
+N=8 rule's confirmation date, drawn only if it falls inside the
+displayed range.
+
+**Checked, not assumed: does the "otherwise show it below" fallback
+ever actually fire?** Verified directly against `demo_test_predictions.csv`:
+for all 237 event sellers, `event_week` equals the last available row
+in that seller's test-window history exactly — 0 mismatches. Given the
+chart now shows the *full* history, the confirmation date is therefore
+always inside the displayed range by construction, and the fallback
+branch is currently unreachable. Kept anyway, deliberately, as
+defensive logic matching this file's own established pattern (the
+`n_events == 0` branch, the `achieved is None` branch) — correct given
+data that could exist even though today's data never exercises it, and
+implements the instructed behaviour rather than assuming the "always
+true" case would hold forever.
+
+**"Historical outcome timeline"** (renamed from "Known outcome in the
+test set," `is_event`-only, unchanged) states both dates explicitly as
+a short list — model alarm, N=8 rule confirmation — rather than only
+inside a sentence, and carries the fallback caption for the
+(currently-unreachable, per above) case where the confirmation date
+isn't on the chart.
+
+**Sections: background contrast + shadow, not nested borders, per
+instruction.** Every `st.container(border=True, key=...)` from D32/D33
+changed to `st.container(key=...)` (no `border=True`); the visual
+separation is now entirely `.st-key-*` CSS — a white background against
+the page's off-white, `border-radius`, and a soft `box-shadow` (kept at
+the same low alpha D33 used for cards, no heavier). The merchant
+snapshot's old 4-column metric row is gone; its two survivors (the hero
+hazard number and average weekly GMV) moved into `info_col`, a plain
+(no-border) panel with a light background wash, beside the chart.
+
+**Type scale.** `--fs-display` (2.75rem) introduced for exactly one
+element: the hero hazard number, now the single most visually dominant
+figure on the page with the sidebar's competing stats gone.
+`--fs-small`/`--fs-micro` named as CSS variables rather than repeating
+bare rem values, for the pills, hero label, and hero delta. Regular
+`st.metric` values (operating-point strip, GMV, cost trade-off) stay at
+D32's `metricValueFontSize` (2.1rem, set via `.streamlit/config.toml`),
+one deliberate step below the hero number — a real scale (display >
+metric > body > small > micro), not a single size reused everywhere.
+
+**Excluded, checked against three times each (code, screenshots, this
+writeup) before calling this done:**
+1. No "HIGH RISK" label or any categorical risk grading anywhere —
+   confirmed by inspection: the only state-dependent text on the page
+   is "Flagged"/"Not flagged," in one pill style, and the hazard number
+   itself carries no colour, icon, or descriptor beyond the percentage.
+2. App name unchanged: `st.title("Reserve decision engine — demo")` —
+   restored the "— demo" suffix a prior revision had dropped from the
+   on-page title (the browser-tab `page_title` still said "(demo)"
+   throughout; only the on-page `st.title` had drifted). Caught by
+   re-reading the instruction against the actual current string, not
+   assumed already correct.
+3. Both required honesty elements kept in the primary view: the short
+   top banner (content unchanged from D33, now also states "historical
+   replay" explicitly in its own first sentence, matching the new
+   pill's wording) and the full "Method & limitations" tab (D33's
+   three disclosures, byte-for-byte unchanged text).
+
+Verified: `ruff check app.py` clean. `streamlit.testing.v1.AppTest`
+re-run across all three FAR options and both an explicit event and
+non-event merchant — no exceptions. Rendered for real and screenshotted
+(headless Chromium): full page top-to-bottom, a zoomed crop confirming
+the dotted rule-confirmation marker actually draws (easy to miss at
+full-page scale, checked at pixel level rather than assumed from the
+legend text alone), the Method & limitations tab, and both pill states
+("Flagged" reached via the default event merchant, "Not flagged"
+reached by switching to a non-event merchant and an early week) —
+confirmed pixel-identical pill styling between the two states.
+`pytest` unaffected (no `src/`/`tests/` files touched).
+

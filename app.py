@@ -11,14 +11,17 @@ test set, not a production system, and the result it demonstrates is
 measured and modest, not a product pitch -- see DECISIONS.md D13/D14/D16/
 D19/D21 for the full evidence behind every number surfaced here.
 
-Visual design (DECISIONS.md D32): one considered palette (`.streamlit/
-config.toml` + the CSS block in `main()`), applied consistently. The one
-sanctioned exception to "one accent" is the feature-contribution chart,
-where a second colour encodes a genuinely signed quantity. No gauges, no
-0-100 risk scores, no red/amber/green threat levels, no alert icons --
-a hazard estimate does not have a "danger level," and nothing here should
-imply more confidence or precision than 0.68 AUC and a minority-benefit
-result support.
+Visual design (DECISIONS.md D32, D36): one considered palette
+(`.streamlit/config.toml` + the CSS block in `main()`), applied
+consistently. The one sanctioned exception to "one accent" is the
+feature-contribution chart, where a second colour encodes a genuinely
+signed quantity. No gauges, no 0-100 risk scores, no red/amber/green
+threat levels, no alert icons, no categorical risk labels ("HIGH RISK"
+etc.) -- a hazard estimate does not have a "danger level," and nothing
+here should imply more confidence or precision than 0.68 AUC and a
+minority-benefit result support. Status pills state fact ("Flagged,"
+"Historical replay") in one neutral style regardless of value -- they
+are not a colour-coded severity system.
 """
 
 from __future__ import annotations
@@ -53,6 +56,7 @@ ACCENT = "#2F6F8F"
 ACCENT_WARM = "#B5602E"
 INK = "#1C1F24"
 INK_MUTED = "#646B78"
+PAPER = "#F7F6F2"
 CARD = "#FFFFFF"
 BORDER = "#E1DFD8"
 
@@ -72,11 +76,31 @@ SUFFIX_LABELS = {"level": "level", "trend": "trend", "accel": "acceleration"}
 
 CUSTOM_CSS = f"""
 <style>
-/* ---- one clean block, one palette, applied throughout ---- */
+/* ---- one clean block, one palette, applied throughout (D32, D36) ---- */
+
+:root {{
+    --fs-display: 2.75rem;
+    --fs-small: 0.85rem;
+    --fs-micro: 0.72rem;
+}}
+
+/* Hide Streamlit's default chrome where possible -- this is a
+   standalone research tool page, not a page inside the Streamlit
+   Cloud shell. Header shrunk rather than display:none'd, so the page
+   doesn't jump when it loads. */
+[data-testid="stAppDeployButton"], [data-testid="stMainMenu"],
+[data-testid="stToolbarActions"], [data-testid="stStatusWidget"] {{
+    display: none !important;
+}}
+header[data-testid="stHeader"] {{ height: 1.25rem; background: transparent; }}
+footer {{ visibility: hidden; height: 0; }}
+
+/* Full page width -- no sidebar, no artificially narrow content column. */
+[data-testid="stAppViewBlockContainer"] {{ max-width: 100%; padding: 1.5rem 2.5rem 3rem; }}
 
 /* Section headings get real breathing room -- generous whitespace does
    the work of separating sections, not extra divider lines. */
-[data-testid="stHeading"] h2 {{ margin-top: 2.5rem; }}
+[data-testid="stHeading"] h2 {{ margin-top: 2rem; }}
 [data-testid="stHeading"] h3 {{ margin-top: 0.25rem; margin-bottom: 0.5rem; }}
 
 /* Metric labels: small, tracked, muted caps -- so the VALUE is the
@@ -84,22 +108,68 @@ CUSTOM_CSS = f"""
 [data-testid="stMetricLabel"] p {{
     text-transform: uppercase;
     letter-spacing: 0.045em;
-    font-size: 0.72rem !important;
+    font-size: var(--fs-micro) !important;
     font-weight: 600 !important;
     color: {INK_MUTED} !important;
 }}
 [data-testid="stMetricValue"] {{ color: {INK}; }}
 
-/* Named cards (st.container(key=...)): generous padding, a subtle
-   shadow so they visibly lift off the page background, and consistent
-   gap below each one -- the vertical rhythm between sections. */
-.st-key-snapshot-card, .st-key-policy-card, .st-key-changed-card,
-.st-key-outcome-card, .st-key-costs-card {{
-    margin-bottom: 2rem;
-    padding: 0.5rem 0.25rem;
-    box-shadow: 0 1px 4px rgba(28, 31, 36, 0.05);
+/* Sections: background contrast + a subtle shadow, not a hard nested
+   border -- st.container(key=...) below is called WITHOUT border=True;
+   this is the whole visual separation (DECISIONS.md D36). */
+.st-key-policy-card, .st-key-changed-card, .st-key-outcome-card, .st-key-costs-card {{
+    background: {CARD};
+    border-radius: 0.75rem;
+    padding: 1.5rem 1.75rem;
+    margin-bottom: 1.75rem;
+    box-shadow: 0 1px 4px rgba(28, 31, 36, 0.06);
 }}
-.st-key-econ-expander {{ margin-bottom: 2rem; }}
+.st-key-econ-expander {{ margin-bottom: 1.75rem; }}
+.st-key-toolbar {{
+    background: {CARD};
+    border-radius: 0.75rem;
+    padding: 1rem 1.5rem 0.25rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(28, 31, 36, 0.05);
+}}
+.st-key-hero-panel {{
+    background: {PAPER};
+    border: 1px solid {BORDER};
+    border-radius: 0.75rem;
+    padding: 1.5rem 1.75rem;
+    height: 100%;
+}}
+
+/* Status pills -- neutral styling regardless of value. Fact stated as
+   text ("Flagged" / "Not flagged"), not a colour-coded severity system
+   -- the hard rule this page is built to (no HIGH RISK, no RAG). */
+.pill-row {{ margin: 0.25rem 0 1.25rem; }}
+.pill {{
+    display: inline-block;
+    padding: 0.32rem 0.85rem;
+    margin-right: 0.5rem;
+    border-radius: 999px;
+    border: 1px solid {BORDER};
+    background: {CARD};
+    color: {INK};
+    font-size: var(--fs-small);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}}
+
+/* Hero hazard number -- the one number on this page given true
+   "display" scale, since it's the single most prominent figure once
+   the sidebar's competing stats are gone. */
+.hero-label {{
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: var(--fs-micro);
+    font-weight: 600;
+    color: {INK_MUTED};
+    margin-bottom: 0.25rem;
+}}
+.hero-value {{ font-size: var(--fs-display); font-weight: 700; color: {INK}; line-height: 1; }}
+.hero-delta {{ font-size: var(--fs-small); color: {INK_MUTED}; margin-top: 0.4rem; }}
 
 /* Honesty banners restyled as intentional callouts, not default
    error/warning chrome -- one accent bar, no icon (hard rule: no alert
@@ -122,18 +192,6 @@ div[data-testid^="stAlertContent"] {{
 div[data-testid^="stAlertContent"] p {{ color: {INK} !important; }}
 div[data-testid^="stAlertContent"] strong {{ color: {INK}; }}
 [data-testid="stAlertDynamicIcon"] {{ display: none !important; }}
-
-/* Sidebar: quieter, tighter typography -- controls, not a second
-   column of competing prose. */
-[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p {{
-    font-size: 0.8rem;
-    line-height: 1.4;
-    color: {INK_MUTED};
-}}
-[data-testid="stSidebar"] [data-testid="stHeading"] h2 {{
-    margin-top: 1.75rem;
-    font-size: 1.05rem !important;
-}}
 </style>
 """
 
@@ -163,6 +221,14 @@ def far_label(far: float) -> str:
 
 def reais(x: float, decimals: int = 2) -> str:
     return f"R${x:,.{decimals}f}"
+
+
+def pill_row(*labels: str) -> None:
+    """Small neutral status pills -- same visual style regardless of
+    value, deliberately (DECISIONS.md D36's hard rule: no categorical
+    risk grading, so nothing here is allowed to look like one)."""
+    spans = "".join(f'<span class="pill">{label}</span>' for label in labels)
+    st.markdown(f'<div class="pill-row">{spans}</div>', unsafe_allow_html=True)
 
 
 @st.cache_data
@@ -220,26 +286,71 @@ def default_merchant_and_week(acceleration: pd.DataFrame) -> tuple[str, pd.Times
     return chosen["seller_id"], chosen["model_alarm_week"]
 
 
-def sparkline(trail: pd.DataFrame, threshold: float) -> alt.LayerChart:
-    """Compact trend line beside the hazard metric -- no axis chrome, a
-    thin threshold rule, sized to sit next to a number rather than as a
-    standalone chart."""
-    spark_df = trail[["week", "calibrated_hazard"]].rename(columns={"calibrated_hazard": "hazard"})
+def hazard_trajectory_chart(
+    merchant_rows: pd.DataFrame,
+    threshold: float,
+    current_week: pd.Timestamp,
+    model_alarm_week: pd.Timestamp | None,
+    rule_confirm_week: pd.Timestamp | None,
+) -> tuple[alt.LayerChart, bool]:
+    """The merchant's full test-window trajectory, not a trailing sample
+    -- this is the page's primary visual now (DECISIONS.md D36), so it
+    shows everything available rather than a 12-week excerpt. Marks the
+    threshold, the currently-selected week, the model's first alarm (if
+    any), and the N=8 rule's confirmation date (if it falls in range).
+    Returns whether the confirmation date was actually drawn, so the
+    caller knows whether it still needs stating elsewhere."""
+    df = merchant_rows[["week", "calibrated_hazard"]].rename(columns={"calibrated_hazard": "hazard"})
+    domain_min, domain_max = df["week"].min(), df["week"].max()
+
     line = (
-        alt.Chart(spark_df)
-        .mark_line(point=alt.OverlayMarkDef(size=25, filled=True), color=ACCENT, strokeWidth=2.25)
+        alt.Chart(df)
+        .mark_line(color=ACCENT, strokeWidth=2.25)
         .encode(
-            x=alt.X("week:T", title=None, axis=None),
-            y=alt.Y("hazard:Q", title=None, axis=None),
+            x=alt.X("week:T", title=None, axis=alt.Axis(format="%b %Y", grid=False)),
+            y=alt.Y("hazard:Q", title="Calibrated hazard", axis=alt.Axis(format="%", gridColor=BORDER)),
             tooltip=[alt.Tooltip("week:T", title="Week"), alt.Tooltip("hazard:Q", title="Hazard", format=".2%")],
         )
     )
-    rule = (
-        alt.Chart(pd.DataFrame({"threshold": [threshold]}))
-        .mark_rule(strokeDash=[3, 3], color=INK_MUTED, strokeWidth=1)
-        .encode(y="threshold:Q")
+    points = alt.Chart(df).mark_point(filled=True, size=35, color=ACCENT, opacity=0.85).encode(
+        x="week:T", y="hazard:Q"
     )
-    return (line + rule).properties(height=64)
+    threshold_rule = (
+        alt.Chart(pd.DataFrame({"y": [threshold]}))
+        .mark_rule(strokeDash=[4, 4], color=INK_MUTED, strokeWidth=1.25)
+        .encode(y="y:Q")
+    )
+    layers = [line, points, threshold_rule]
+
+    current_df = df[df["week"] == current_week]
+    if len(current_df):
+        current_point = (
+            alt.Chart(current_df)
+            .mark_point(filled=True, size=170, color=INK, stroke=ACCENT, strokeWidth=2)
+            .encode(x="week:T", y="hazard:Q", tooltip=[alt.Tooltip("hazard:Q", title="Selected week", format=".2%")])
+        )
+        layers.append(current_point)
+
+    if model_alarm_week is not None and domain_min <= model_alarm_week <= domain_max:
+        alarm_rule = (
+            alt.Chart(pd.DataFrame({"x": [model_alarm_week]}))
+            .mark_rule(color=ACCENT_WARM, strokeWidth=1.5)
+            .encode(x="x:T")
+        )
+        layers.append(alarm_rule)
+
+    confirm_drawn = False
+    if rule_confirm_week is not None and domain_min <= rule_confirm_week <= domain_max:
+        confirm_rule = (
+            alt.Chart(pd.DataFrame({"x": [rule_confirm_week]}))
+            .mark_rule(color=INK, strokeDash=[2, 2], strokeWidth=1.5)
+            .encode(x="x:T")
+        )
+        layers.append(confirm_rule)
+        confirm_drawn = True
+
+    chart = alt.layer(*layers).properties(height=340)
+    return chart, confirm_drawn
 
 
 def main() -> None:
@@ -249,7 +360,7 @@ def main() -> None:
     predictions, gmv, acceleration, sweep, precision_recall, achieved_far_lookup, costs = load_data()
     contrib_cols = [c for c in predictions.columns if c.startswith("contrib__")]
 
-    st.title("Reserve decision engine")
+    st.title("Reserve decision engine — demo")
     st.caption(
         "A demonstration of an evaluated research result on the Olist Brazilian marketplace "
         "test set (2018), not a production system. Every number on this page is read from a "
@@ -262,109 +373,116 @@ def main() -> None:
     # most of the page (D32). Restructured, not softened (DECISIONS.md
     # D33): one short banner states the single most important sentence
     # and points to "Method & limitations," which carries every word of
-    # the original text, unchanged, one click away.
+    # the original text, unchanged, one click away. Kept through the
+    # D36 layout overhaul per explicit instruction not to remove
+    # methodological framing from the primary view.
     st.warning(
-        "**The model detects that a seller has already gone quiet, a little faster than a "
-        "fixed rule — it does not predict distress weeks in advance** (0.53–0.59 AUC on that "
-        "specific claim; near chance). Full evaluation, the outcomes breakdown at the FAR "
-        "selected below, and the calibration caveat are in **Method & limitations**, one tab "
-        "over."
+        "**This is a historical replay of an evaluated result, not a live predictor.** The "
+        "model detects that a seller has already gone quiet, a little faster than a fixed rule "
+        "— it does not predict distress weeks in advance (0.53–0.59 AUC on that specific claim; "
+        "near chance). Full evaluation, the outcomes breakdown at the FAR selected below, and "
+        "the calibration caveat are in **Method & limitations**, one tab over."
     )
 
-    # ---- sidebar: operating point ----
-    st.sidebar.header("Operating point")
-    st.sidebar.caption("**FAR**: share of a healthy seller's weekly rows flagged as a false alarm.")
-    far_options = sorted(acceleration["far"].unique())
-    far = st.sidebar.selectbox(
-        "False-alarm rate (FAR)",
-        far_options,
-        index=far_options.index(DEFAULT_FAR),
-        format_func=far_label,
-    )
-    far_row = sweep.loc[sweep["false_alarm_rate"] == far].iloc[0]
-    threshold = float(far_row["threshold"])
+    # ---- compact toolbar: FAR, merchant, week -- no permanent sidebar ----
+    with st.container(key="toolbar"):
+        far_col, merchant_col, week_col = st.columns([1, 2, 1])
 
-    # Compact stat block, not prose (DECISIONS.md D33), regrouped into
-    # two labelled blocks rather than six flat metrics (DECISIONS.md
-    # D35): "Operating point" (what was chosen and what it costs in false
-    # alarms) and "Test-set performance" (how it actually did there) are
-    # different questions, and reading them as one undifferentiated grid
-    # blurred that. Target and achieved row-level FAR are different
-    # numbers (isotonic tie-plateaus, D29/D30 -- 5% nominal achieves
-    # 5.9%, 1% achieves 2.5%, 10% achieves 12.0%), and showing only "5%"
-    # here once contradicted the README's own methodology (D34). Achieved
-    # figure is read from the same artefact README Section 4's table
-    # reads, not hardcoded, so the two can't drift apart.
-    pr_row_far = precision_recall[precision_recall["far"] == far]
-    pr = pr_row_far.iloc[0] if len(pr_row_far) else None
-    achieved = achieved_far_lookup.get(far)
+        with far_col:
+            far_options = sorted(acceleration["far"].unique())
+            far = st.selectbox(
+                "False-alarm rate (FAR)",
+                far_options,
+                index=far_options.index(DEFAULT_FAR),
+                format_func=far_label,
+                help="Share of a healthy seller's weekly rows flagged as a false alarm at this threshold.",
+            )
+        far_row = sweep.loc[sweep["false_alarm_rate"] == far].iloc[0]
+        threshold = float(far_row["threshold"])
+        pr_row_far = precision_recall[precision_recall["far"] == far]
+        pr = pr_row_far.iloc[0] if len(pr_row_far) else None
+        achieved = achieved_far_lookup.get(far)
 
-    # Full-width, not a column split -- "target -> achieved" needs more
-    # room than a narrow sidebar column gives it without truncating.
-    st.sidebar.metric(
-        "Row FAR: target → achieved",
-        f"{far_label(far)} → {achieved:.1%}" if achieved is not None else far_label(far),
-    )
-    st.sidebar.metric("Seller FAR", f"{far_row['seller_level_false_alarm_rate']:.1%}")
+        default_seller_id, default_alarm_week = default_merchant_and_week(acceleration)
+        sellers = predictions[["seller_id", "category", "event_B"]].drop_duplicates("seller_id")
+        sellers = sellers.sort_values(["event_B", "seller_id"], ascending=[False, True]).reset_index(drop=True)
+        sellers["label"] = sellers.apply(
+            lambda r: f"{r['seller_id'][:10]}…  ·  {r['category']}"
+            + ("  · [known cessation in test set]" if r["event_B"] else ""),
+            axis=1,
+        )
+        default_seller_pos = sellers.index[sellers["seller_id"] == default_seller_id]
+        default_seller_idx = int(default_seller_pos[0]) if len(default_seller_pos) else 0
+        with merchant_col:
+            choice = st.selectbox(
+                "Merchant",
+                sellers["label"],
+                index=default_seller_idx,
+                help="Test-set sellers; confirmed cessations marked and listed first.",
+            )
+        seller_id = sellers.loc[sellers["label"] == choice, "seller_id"].iloc[0]
 
-    st.sidebar.divider()
-    st.sidebar.header("Test-set performance")
-    # Two columns, not three -- D32's bumped-up metric-value font size
-    # (a main-content focal-point choice) truncates in anything narrower
-    # than half the sidebar; caught by screenshot, not assumed to fit.
-    perf_a, perf_b = st.sidebar.columns(2)
-    perf_a.metric("Precision", f"{pr['precision']:.1%}" if pr is not None else "—")
-    perf_b.metric("Recall", f"{pr['recall']:.1%}" if pr is not None else "—")
-    st.sidebar.metric("Alerts", f"{int(pr['n_flagged']):,}" if pr is not None else "—")
-    st.sidebar.caption(
-        f"{int(pr['true_events_caught'])} of these alerts are true cessations "
-        "(full breakdown: Method & limitations)."
-        if pr is not None
-        else "No precision/recall recorded at this operating point."
-    )
+        merchant_rows = predictions[predictions["seller_id"] == seller_id].sort_values("week").reset_index(drop=True)
+        weeks_available = merchant_rows["week"].dt.date.tolist()
+        if seller_id == default_seller_id and default_alarm_week.date() in weeks_available:
+            default_week_idx = weeks_available.index(default_alarm_week.date())
+        else:
+            default_week_idx = len(weeks_available) - 1
+        with week_col:
+            week_choice = st.selectbox(
+                "Week",
+                weeks_available,
+                index=default_week_idx,
+                help="Any week in this merchant's test-window history.",
+            )
 
-    accel_at_far = acceleration[acceleration["far"] == far]
-    n_events = len(accel_at_far)
-
-    # Rendered inside the "Method & limitations" tab, below -- computed
-    # here because accel_at_far/n_events are also needed by the "known
-    # outcome" card in the merchant view.
-
-    # ---- sidebar: merchant + week ----
-    default_seller_id, default_alarm_week = default_merchant_and_week(acceleration)
-
-    st.sidebar.divider()
-    st.sidebar.header("Merchant")
-    st.sidebar.caption("Test-set sellers; confirmed cessations marked and listed first.")
-    sellers = predictions[["seller_id", "category", "event_B"]].drop_duplicates("seller_id")
-    sellers = sellers.sort_values(["event_B", "seller_id"], ascending=[False, True]).reset_index(drop=True)
-    sellers["label"] = sellers.apply(
-        lambda r: f"{r['seller_id'][:10]}…  ·  {r['category']}"
-        + ("  · [known cessation in test set]" if r["event_B"] else ""),
-        axis=1,
-    )
-    default_seller_pos = sellers.index[sellers["seller_id"] == default_seller_id]
-    default_seller_idx = int(default_seller_pos[0]) if len(default_seller_pos) else 0
-    choice = st.sidebar.selectbox("Select a merchant", sellers["label"], index=default_seller_idx)
-    seller_id = sellers.loc[sellers["label"] == choice, "seller_id"].iloc[0]
-
-    merchant_rows = predictions[predictions["seller_id"] == seller_id].sort_values("week").reset_index(drop=True)
-    weeks_available = merchant_rows["week"].dt.date.tolist()
-    if seller_id == default_seller_id and default_alarm_week.date() in weeks_available:
-        default_week_idx = weeks_available.index(default_alarm_week.date())
-    else:
-        default_week_idx = len(weeks_available) - 1
-    st.sidebar.caption("Any week in this merchant's test-window history.")
-    week_choice = st.sidebar.selectbox("Week", weeks_available, index=default_week_idx)
     row = merchant_rows[merchant_rows["week"].dt.date == week_choice].iloc[0]
     row_idx = merchant_rows.index[merchant_rows["week"].dt.date == week_choice][0]
     prev_row = merchant_rows.iloc[row_idx - 1] if row_idx > 0 else None
 
     is_event = bool(row["event_B"])
+    hazard_this_week = float(row["calibrated_hazard"])
+    hazard_last_week = float(prev_row["calibrated_hazard"]) if prev_row is not None else None
+    flagged = hazard_this_week >= threshold
     weekly_gmv = float(gmv.loc[gmv["seller_id"] == seller_id, "weekly_gmv"].iloc[0])
     reserve_pct = costs["reserve_pct"]
     wc_rate = costs["working_capital_cost_weekly_rate"]
     benefit_capture = costs["benefit_capture_rate"]
+
+    accel_at_far = acceleration[acceleration["far"] == far]
+    n_events = len(accel_at_far)
+
+    # First week this merchant's own hazard crosses the CURRENT threshold,
+    # computed directly rather than only reusing the precomputed
+    # event-only artefact -- works the same way for a flagged merchant
+    # that never became a confirmed cessation, not just the 237 that did.
+    above = merchant_rows.loc[merchant_rows["calibrated_hazard"] >= threshold, "week"]
+    model_alarm_week = above.min() if len(above) else None
+    rule_confirm_week = row["event_week"] if is_event and pd.notna(row["event_week"]) else None
+
+    # ---- compact operating-point stat strip -- preserves every figure
+    # the old sidebar carried (DECISIONS.md D33/D34/D35), just without a
+    # sidebar to carry it in ----
+    stat_cols = st.columns(5)
+    stat_cols[0].metric("Target row FAR", far_label(far))
+    stat_cols[1].metric("Achieved row FAR", f"{achieved:.1%}" if achieved is not None else "—")
+    stat_cols[2].metric("Seller FAR", f"{far_row['seller_level_false_alarm_rate']:.1%}")
+    stat_cols[3].metric("Precision", f"{pr['precision']:.1%}" if pr is not None else "—")
+    stat_cols[4].metric("Recall", f"{pr['recall']:.1%}" if pr is not None else "—")
+    if pr is not None:
+        st.caption(
+            f"At this FAR: {int(pr['n_flagged']):,} alerts, {int(pr['true_events_caught'])} true cessations "
+            "caught among them (full breakdown: Method & limitations)."
+        )
+
+    # ---- status pills: fact stated plainly, one neutral style
+    # regardless of value -- no HIGH RISK, no colour grading (hard rule,
+    # DECISIONS.md D36) ----
+    pill_row(
+        "Historical replay",
+        f"FAR {far_label(far)}",
+        "Flagged" if flagged else "Not flagged",
+    )
 
     # ---- the merchant view is the primary content (DECISIONS.md D33);
     # method and limitations are one tab over, not stacked above it ----
@@ -374,7 +492,8 @@ def main() -> None:
         _render_merchant_view(
             row, prev_row, merchant_rows, threshold, far, is_event, accel_at_far,
             weekly_gmv, reserve_pct, wc_rate, benefit_capture, far_row, pr_row_far,
-            contrib_cols,
+            contrib_cols, hazard_this_week, hazard_last_week, flagged,
+            model_alarm_week, rule_confirm_week,
         )
 
     with tab_method:
@@ -384,43 +503,45 @@ def main() -> None:
 def _render_merchant_view(
     row, prev_row, merchant_rows, threshold, far, is_event, accel_at_far,
     weekly_gmv, reserve_pct, wc_rate, benefit_capture, far_row, pr_row_far,
-    contrib_cols,
+    contrib_cols, hazard_this_week, hazard_last_week, flagged,
+    model_alarm_week, rule_confirm_week,
 ) -> None:
-    # ---- merchant snapshot: the focal point of the page ----
-    st.header("Merchant snapshot")
-    with st.container(border=True, key="snapshot-card"):
-        hazard_col, spark_col, flag_col, gmv_col = st.columns([1.15, 1.5, 0.85, 1.05])
+    # ---- hazard trajectory: the page's primary visual, ~60% width ----
+    chart_col, info_col = st.columns([3, 2])
+    with chart_col:
+        chart, confirm_drawn = hazard_trajectory_chart(
+            merchant_rows, threshold, row["week"], model_alarm_week, rule_confirm_week
+        )
+        st.altair_chart(chart, width="stretch")
+        legend_bits = ["dashed grey = flag threshold", "large point = selected week"]
+        if model_alarm_week is not None:
+            legend_bits.append("solid vertical = model's first alarm")
+        if confirm_drawn:
+            legend_bits.append("dotted vertical = N=8 rule confirmation")
+        st.caption(" · ".join(legend_bits))
 
-        hazard_this_week = float(row["calibrated_hazard"])
-        hazard_last_week = float(prev_row["calibrated_hazard"]) if prev_row is not None else None
-        # The delta is a difference of two percentages, i.e. percentage
-        # points, not itself a percentage -- ".2%" formatting on the raw
-        # difference understated it by ~100x. "pp" makes the unit explicit.
-        with hazard_col:
-            st.metric(
-                "Calibrated hazard, this week",
-                f"{hazard_this_week:.2%}",
-                delta=(
-                    f"{(hazard_this_week - hazard_last_week) * 100:+.2f} pp vs. last week"
-                    if hazard_last_week is not None
-                    else None
-                ),
-                delta_color="off",  # a hazard estimate has no "danger direction" -- see banners
+    with info_col:
+        with st.container(key="hero-panel"):
+            delta_html = ""
+            if hazard_last_week is not None:
+                # Percentage points, not a percentage of a percentage --
+                # ".2%" on the raw difference would understate it ~100x.
+                delta_pp = (hazard_this_week - hazard_last_week) * 100
+                delta_html = f'<div class="hero-delta">{delta_pp:+.2f} pp vs. last week</div>'
+            st.markdown(
+                '<div class="hero-label">Calibrated hazard, this week</div>'
+                f'<div class="hero-value">{hazard_this_week:.2%}</div>'
+                f"{delta_html}",
+                unsafe_allow_html=True,
             )
-
-        trail = merchant_rows[merchant_rows["week"] <= row["week"]].tail(12)
-        with spark_col:
-            st.altair_chart(sparkline(trail, threshold), width="stretch")
-            st.caption(f"Last {len(trail)} week(s) · dashed line = flag threshold")
-
-        flagged = hazard_this_week >= threshold
-        with flag_col:
-            st.metric("Flagged?", "Yes" if flagged else "No")
-        with gmv_col:
             st.metric("Avg. weekly GMV", reais(weekly_gmv, 0))
+            if model_alarm_week is not None:
+                st.caption(f"Model's first alarm at this FAR: **{model_alarm_week.date()}**.")
+            else:
+                st.caption("Never crosses this FAR's threshold in this merchant's test-window history.")
 
     # ---- simulated policy action ----
-    with st.container(border=True, key="policy-card"):
+    with st.container(key="policy-card"):
         st.subheader("Simulated policy action")
         st.caption(
             "The model determines only the flag (hazard ≥ threshold, above). The reserve "
@@ -441,7 +562,7 @@ def _render_merchant_view(
         )
 
     # ---- what changed since last week ----
-    with st.container(border=True, key="changed-card"):
+    with st.container(key="changed-card"):
         st.subheader("What changed since last week")
         if prev_row is None:
             st.write("No prior week in the test window for this merchant.")
@@ -487,26 +608,35 @@ def _render_merchant_view(
                 "meaning rather than decoration."
             )
 
-    # ---- known outcome ----
+    # ---- historical outcome timeline ----
     if is_event:
-        with st.container(border=True, key="outcome-card"):
-            st.subheader("Known outcome in the test set (not a live prediction)")
+        with st.container(key="outcome-card"):
+            st.subheader("Historical outcome timeline")
             outcome_row = accel_at_far[accel_at_far["seller_id"] == row["seller_id"]]
             if len(outcome_row):
                 o = outcome_row.iloc[0]
                 status_text = {
                     "beats_rule": f"the model flagged this merchant **{o['acceleration_weeks']:.0f} weeks before** "
-                    f"the N=8 rule would have confirmed it (rule confirmation: {o['event_week'].date()}, "
-                    f"model alarm: {o['model_alarm_week'].date()}).",
-                    "ties_rule": f"the model flagged this merchant the **same week** the N=8 rule confirmed it "
-                    f"({o['event_week'].date()}).",
-                    "never_flagged": f"the model **never flagged** this merchant before the N=8 rule confirmed "
-                    f"it on {o['event_week'].date()} — the same outcome the naive rule alone would give.",
+                    f"the N=8 rule would have confirmed it.",
+                    "ties_rule": "the model flagged this merchant the **same week** the N=8 rule confirmed it.",
+                    "never_flagged": "the model **never flagged** this merchant before the N=8 rule confirmed "
+                    "it — the same outcome the naive rule alone would give.",
                 }[o["status"]]
                 st.write(f"This merchant went on to a confirmed cessation. At {far_label(far)} FAR, {status_text}")
+                st.write(
+                    f"- Model alarm: **{model_alarm_week.date() if model_alarm_week is not None else 'never'}**"
+                )
+                st.write(f"- N=8 rule confirmation: **{o['event_week'].date()}**")
+                if rule_confirm_week is not None and not (
+                    merchant_rows["week"].min() <= rule_confirm_week <= merchant_rows["week"].max()
+                ):
+                    st.caption(
+                        "The rule-confirmation date above falls outside the chart's displayed range, "
+                        "so it's stated here rather than marked on it."
+                    )
 
     # ---- cost trade-off ----
-    with st.container(border=True, key="costs-card"):
+    with st.container(key="costs-card"):
         st.subheader("Estimated cost trade-off at this reserve level")
         weekly_wc_cost = weekly_gmv * reserve_pct * wc_rate
         two_week_benefit = 2 * weekly_gmv * reserve_pct * benefit_capture
@@ -523,7 +653,7 @@ def _render_merchant_view(
             )
 
     with st.expander("Population-level economics at this FAR (from the evaluated test set)"):
-        # far_row already computed above (sidebar); pr_row_far reused here too.
+        # far_row already computed above (toolbar); pr_row_far reused here too.
         pr_row = pr_row_far
         st.write(
             f"- Net Δcost vs. the naive rule: **{reais(far_row['net_delta_cost_per_1000_merchant_weeks_reais'])} "
@@ -547,7 +677,8 @@ def _render_method_and_limitations(
 ) -> None:
     """Every word that used to occupy most of the page's visible area
     (DECISIONS.md D33) -- relocated, not cut and not softened. Reachable
-    in one click from the short top banner."""
+    in one click from the short top banner, kept through the D36 layout
+    overhaul per explicit instruction."""
     st.subheader("What this model actually does")
     st.warning(
         "**What this model actually does:** it does not predict distress weeks in advance "
@@ -555,7 +686,7 @@ def _render_method_and_limitations(
         "chance, at every horizon tested before a seller's last order). What it does is "
         "sometimes recognise a seller going quiet a little faster than a fixed rule that "
         "simply waits eight silent weeks. The banner below updates for whichever false-alarm "
-        "rate is selected in the sidebar."
+        "rate is selected in the toolbar."
     )
 
     # "Target" throughout, not "at X% FAR" bare -- the achieved row-level
@@ -565,7 +696,7 @@ def _render_method_and_limitations(
     achieved_clause = f" (achieved {achieved:.1%} on this test set)" if achieved is not None else ""
     st.subheader(f"Outcomes at a {far_label(far)} FAR target{achieved_clause}")
     if n_events == 0:
-        # Defensive: with the sidebar selector restricted to the FARs the
+        # Defensive: with the toolbar selector restricted to the FARs the
         # acceleration artefact actually covers this shouldn't be
         # reachable, but the artefact and the selector are two separate
         # files -- if they ever drift apart again, show this instead of
