@@ -1,4 +1,4 @@
-# Merchant distress early-warning → dynamic reserve sizing
+# Merchant Cessation Early-Warning & Reserve Policy Simulation
 
 **One-line summary of where this landed:** the hypothesised mechanism
 failed, a simpler one works modestly, and the economic case survives
@@ -10,6 +10,11 @@ in `DECISIONS.md`, referenced by entry number (`D1`, `D17`, …) throughout
 this README — that file has the full reasoning behind every choice
 mentioned here; `FAILURES.md` has the dead ends, including the ones that
 turned out to matter (D14 §3, D21).
+
+**Architecture, end to end:** Olist orders → weekly merchant panel →
+leakage-safe features → discrete-time hazard model → isotonic
+calibration → FAR threshold → merchant flag → simulated reserve policy →
+cost evaluation.
 
 ## 1. The problem
 

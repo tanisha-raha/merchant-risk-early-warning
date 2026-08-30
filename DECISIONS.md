@@ -1924,3 +1924,78 @@ Chromium) — once to catch the 3-column truncation, once after the
 full-width fix to confirm "5% → 5.9%" renders without wrapping.
 `pytest` unaffected (5 passed, no `src/`/`tests/` files touched).
 
+### D35 — Sidebar regrouped into two labelled blocks; policy wording, an architecture one-liner, and the README title corrected
+
+Four instructed changes, unrelated to each other, done in one entry.
+
+**Sidebar regrouped: "Operating point" then "Test-set performance,"
+not six flat metrics.** D33/D34 built the right numbers but left them
+as an undifferentiated grid — "what was chosen" (target/achieved/
+seller FAR) and "how it did" (precision/recall/alerts) are different
+questions, and reading them as one block blurred that. Now:
+`st.sidebar.header("Operating point")` → target→achieved row FAR,
+seller FAR → `st.sidebar.divider()` → `st.sidebar.header("Test-set
+performance")` → precision, recall (2-column), alerts (full width) →
+one caption for true-events count. True-events count moved out of the
+flat-metric grid per instruction ("move true-events count to a caption
+or the Method tab") — kept as a caption immediately below the stats
+rather than moved all the way to the Method tab, since it's one clause
+directly explaining the "Alerts" number just above it, not a caveat
+that needed full relocation.
+
+**Second column-width lesson, same mechanism as D34's first one, this
+time in the new block:** first attempt put precision/recall/alerts in
+one 3-column row, matching the FAR row's earlier three-item shape.
+Screenshotted before committing (same discipline as D34) and found it
+truncated ("4....", "38...", "2,...") even though these are shorter
+strings than the FAR row's "5% → 5.9%" that prompted the original
+full-width fix — the actual constraint is D32's bumped
+`metricValueFontSize` (2.1rem, tuned for the merchant view's focal-point
+metrics), which doesn't fit three columns in a ~280px sidebar
+regardless of string length. Fixed to precision/recall as a 2-column
+pair (this width does fit, per D34's own working example) and alerts as
+its own full-width metric. Lesson generalised in a code comment at the
+call site so the next stat added here doesn't repeat the same
+3-column mistake.
+
+**Policy section wording:** the unflagged case read "No additional
+reserve recommended," inconsistent with the section's own D33 rename to
+"Simulated policy action" — "recommended" implies an opinion being
+offered, when the panel's whole point (stated in its own caption) is
+that this is a mechanical threshold policy, not a recommendation
+engine. Changed to "No additional reserve under this simulated policy."
+
+**Architecture one-liner added near the top of the README,** per
+instruction, directly after the existing "Reproduce every number..."
+paragraph and before Section 1: Olist orders → weekly merchant panel →
+leakage-safe features → discrete-time hazard model → isotonic
+calibration → FAR threshold → merchant flag → simulated reserve policy
+→ cost evaluation. One line, no new numbered section, matching the
+existing un-numbered preamble block rather than disrupting SPEC.md's
+eight-section README ordering.
+
+**README title changed:** "Merchant distress early-warning → dynamic
+reserve sizing" → "Merchant Cessation Early-Warning & Reserve Policy
+Simulation" — the old title claimed dynamic (continuous, hazard-sized)
+reserve sizing, which D15 explicitly scoped out in favour of a binary
+threshold policy with a fixed reserve percentage; the title had been
+overclaiming since that decision, just never revisited. `SPEC.md`'s own
+title ("Specification: merchant distress early-warning → dynamic
+reserve sizing") deliberately left unchanged, checked rather than
+assumed to also need fixing: `SPEC.md` is the *target* document — what
+the brief specified before D15 narrowed scope — and its own stated
+philosophy is that `DECISIONS.md` records deviations from it rather
+than the target being retroactively edited to match what was actually
+built. Grepped both files plus `DECISIONS.md` for the old phrase to
+confirm no other stale copy of the title exists.
+
+Verified: `ruff check app.py` clean. `streamlit.testing.v1.AppTest`
+re-run across all three FAR options and both an event and non-event
+merchant — no exceptions; the default run's metric list now reads
+`'4.2%', '38.8%', '2,212'` as three separate entries (precision, recall,
+alerts) in the new block, confirming the 2-column-plus-full-width
+layout renders with real data. Rendered and screenshotted three times
+in total across this entry (one 3-column truncation caught, one
+full-width confirmation, one final full-sidebar check of both blocks
+together). `pytest` unaffected — no `src/`/`tests/` files touched.
+

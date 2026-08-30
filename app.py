@@ -284,29 +284,44 @@ def main() -> None:
     far_row = sweep.loc[sweep["false_alarm_rate"] == far].iloc[0]
     threshold = float(far_row["threshold"])
 
-    # Compact stat block, not prose (DECISIONS.md D33). Target and
-    # achieved row-level FAR are different numbers (isotonic tie-
-    # plateaus, D29/D30 -- 5% nominal achieves 5.9%, 1% achieves 2.5%,
-    # 10% achieves 12.0%), and showing only "5%" here contradicted the
-    # README's own methodology (DECISIONS.md D34). Achieved figure is
-    # read from the same artefact README Section 4's table reads, not
-    # hardcoded, so the two can't drift apart.
+    # Compact stat block, not prose (DECISIONS.md D33), regrouped into
+    # two labelled blocks rather than six flat metrics (DECISIONS.md
+    # D35): "Operating point" (what was chosen and what it costs in false
+    # alarms) and "Test-set performance" (how it actually did there) are
+    # different questions, and reading them as one undifferentiated grid
+    # blurred that. Target and achieved row-level FAR are different
+    # numbers (isotonic tie-plateaus, D29/D30 -- 5% nominal achieves
+    # 5.9%, 1% achieves 2.5%, 10% achieves 12.0%), and showing only "5%"
+    # here once contradicted the README's own methodology (D34). Achieved
+    # figure is read from the same artefact README Section 4's table
+    # reads, not hardcoded, so the two can't drift apart.
     pr_row_far = precision_recall[precision_recall["far"] == far]
     pr = pr_row_far.iloc[0] if len(pr_row_far) else None
     achieved = achieved_far_lookup.get(far)
-    # Full-width, not a 3-column split -- "target -> achieved" needs more
+
+    # Full-width, not a column split -- "target -> achieved" needs more
     # room than a narrow sidebar column gives it without truncating.
     st.sidebar.metric(
         "Row FAR: target → achieved",
         f"{far_label(far)} → {achieved:.1%}" if achieved is not None else far_label(far),
     )
     st.sidebar.metric("Seller FAR", f"{far_row['seller_level_false_alarm_rate']:.1%}")
-    stat_c, stat_d = st.sidebar.columns(2)
-    stat_c.metric("Flagged rows", f"{int(pr['n_flagged']):,}" if pr is not None else "—")
-    stat_d.metric("True events", f"{int(pr['true_events_caught'])}" if pr is not None else "—")
-    stat_e, stat_f = st.sidebar.columns(2)
-    stat_e.metric("Precision", f"{pr['precision']:.1%}" if pr is not None else "—")
-    stat_f.metric("Recall", f"{pr['recall']:.1%}" if pr is not None else "—")
+
+    st.sidebar.divider()
+    st.sidebar.header("Test-set performance")
+    # Two columns, not three -- D32's bumped-up metric-value font size
+    # (a main-content focal-point choice) truncates in anything narrower
+    # than half the sidebar; caught by screenshot, not assumed to fit.
+    perf_a, perf_b = st.sidebar.columns(2)
+    perf_a.metric("Precision", f"{pr['precision']:.1%}" if pr is not None else "—")
+    perf_b.metric("Recall", f"{pr['recall']:.1%}" if pr is not None else "—")
+    st.sidebar.metric("Alerts", f"{int(pr['n_flagged']):,}" if pr is not None else "—")
+    st.sidebar.caption(
+        f"{int(pr['true_events_caught'])} of these alerts are true cessations "
+        "(full breakdown: Method & limitations)."
+        if pr is not None
+        else "No precision/recall recorded at this operating point."
+    )
 
     accel_at_far = acceleration[acceleration["far"] == far]
     n_events = len(accel_at_far)
@@ -418,7 +433,7 @@ def _render_merchant_view(
                 f"while the flag holds (threshold {threshold:.4f} at {far_label(far)} FAR)."
             )
         else:
-            st.write(f"**No additional reserve recommended** at the {far_label(far)} operating point.")
+            st.write(f"**No additional reserve under this simulated policy** at the {far_label(far)} operating point.")
         st.caption(
             "This is a binary threshold policy — flag or don't — with a fixed reserve percentage "
             "when flagged, not a continuous hazard-to-reserve formula (that fuller design was "
