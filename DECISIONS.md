@@ -1743,3 +1743,87 @@ rendered:**
 
 Ruff clean. No `src/` or `tests/` files touched; `pytest` unaffected.
 
+### D33 — Restructure, not restyle: caveats moved to their own tab, sidebar cut to a stat block, merchant view is now the first thing shown
+
+**Instruction: D32 restyled the page but didn't fix that it still reads
+as mostly caveats.** "Read this first," "Outcomes at 5% FAR," and "Read
+this too" occupied most of the visible area before any merchant content
+appeared. Two changes, in order, then a light polish pass on what
+remained — nothing removed, nothing softened, everything still one
+click away.
+
+**One short top banner replaces three full-length ones.** New text,
+still `st.warning`, still the same D32 restyled callout:
+
+> The model detects that a seller has already gone quiet, a little
+> faster than a fixed rule — it does not predict distress weeks in
+> advance (0.53–0.59 AUC on that specific claim; near chance). Full
+> evaluation, the outcomes breakdown at the FAR selected below, and the
+> calibration caveat are in **Method & limitations**, one tab over.
+
+Every word from the original three banners still exists, verbatim,
+unshortened — moved, not cut. `st.tabs(["Merchant view", "Method &
+limitations"])`: the merchant view (snapshot, simulated policy action,
+what changed, known outcome, cost trade-off, population-economics
+expander) is `tab_merchant` and renders first, since Streamlit opens
+the first tab by default -- exactly "primary content," not scrolled
+past three disclosure sections to reach it. `tab_method` holds, under
+three `st.subheader`s, the full original "What this model actually
+does" warning, the full dynamic "Outcomes at X% FAR" info/warning
+(unchanged logic, including the defensive zero-events branch), and the
+full "Calibration caveat" warning plus the out-of-scope caption — all
+identical text to before this entry, only relocated. Implementation
+note: `main()`'s body was getting long with two full render paths
+inline, so the merchant-view and method-tab content were factored into
+`_render_merchant_view()` and `_render_method_and_limitations()`,
+passed the same local variables `main()` already had rather than
+recomputing anything.
+
+**Sidebar cut by roughly two-thirds, prose replaced with a stat
+block.** FAR's definition is now one line ("**FAR**: share of a healthy
+seller's weekly rows flagged as a false alarm.") instead of a
+three-sentence paragraph. The three prose captions that used to state
+row-level FAR, seller-level FAR, and this operating point's precision/
+recall/flagged-row counts as full sentences are now six `st.metric`
+calls in a 2×3 sidebar grid (Row FAR / Seller FAR, Flagged rows / True
+events, Precision / Recall) — labelled numbers, not sentences, per
+instruction. The "roughly N alerts per true cessation row" derived
+ratio from the old prose was dropped rather than kept as a seventh
+stat — it's computable from the two numbers already shown (flagged
+rows, true events) and wasn't one of the six figures asked for; not a
+caveat, so nothing lost by cutting it. Merchant section captions
+similarly cut: "Any seller in the held-out test window. Sellers with a
+confirmed cessation in the test set are marked and listed first.
+Defaults to a merchant the model actually flags, so the page below
+isn't empty on load." (three sentences) → "Test-set sellers; confirmed
+cessations marked and listed first." (one clause) — the "why it
+defaults this way" justification was implementation detail for a
+developer reading the code, not something a user needs from the
+sidebar; it's still in this docstring and D28.
+
+**Light polish, per instruction, on what remained:** named cards
+(`.st-key-*`) gained explicit padding and a subtle `box-shadow` (kept
+deliberately faint — 5% alpha — so it separates the card from the page
+without reading as elevation/emphasis it hasn't earned) on top of D32's
+native border; card bottom margin increased slightly (1.85rem →
+2rem) for more consistent vertical rhythm between sections now that
+there are fewer of them competing for attention.
+
+**Hard rule carried over unchanged, re-confirmed by inspection:** no
+gauges, no 0-100 scores, no red/amber/green threat levels, no alert
+icons anywhere in the restructure — the top banner and both tabs use
+the same D32 callout styling, no new visual vocabulary introduced.
+
+Verified: `ruff check app.py` clean. `streamlit.testing.v1.AppTest`
+re-run with the same script and coverage as D28/D32 — all three FAR
+options, both an explicit event and non-event merchant, both week-
+selector endpoints — no exceptions; the default run's metric list now
+also includes the six new sidebar stat values (`5%`, `19.4%`, `2,212`,
+`92`, `4.2%`, `38.8%`), confirming the stat block renders with real
+data, not placeholders. Also rendered for real (`streamlit run` +
+headless Chromium screenshot, same method as D32) and visually
+confirmed: the merchant view is what a first-time visitor sees with no
+scrolling past caveats, the Method & limitations tab reproduces every
+original sentence unabridged, and the card shadow/padding change is
+visible without reading as new emphasis.
+

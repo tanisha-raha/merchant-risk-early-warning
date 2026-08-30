@@ -645,20 +645,28 @@ hierarchy, and cards, all built to one hard rule: no gauges, no 0-100
 risk scores, no red/amber/green threat levels, no alert icons, nothing
 implying more confidence or precision than the evidence supports. No
 number or piece of logic on the page changed, only how it's presented.
-The sidebar states both the row-level FAR and its
-equivalent seller-level rate side by side (not just the row-level
-number — see Section 3's footnote), plus that operating point's
-precision/recall, so the same distinction this document draws in prose
-is visible where the FAR is actually chosen. It is a presentation of
-the results already reported above, not a new analysis and not a
-production system: the two required honesty checks (this section's own
-opening two paragraphs) are the same ones from Sections 3 and 5 — the
-minority-benefit acceleration result and the top-decile calibration
-caveat — surfaced as banners that don't collapse or hide. The "Simulated
-policy action" panel is explicit that the model determines only the
-flag; the reserve percentage applied when flagged is a fixed
-`config/costs.yaml` assumption, not something the model sizes (Section
-2, limitation 2).
+The sidebar states both the row-level FAR and its equivalent
+seller-level rate (not just the row-level number — see Section 3's
+footnote), plus that operating point's precision/recall, as a compact
+labelled stat block rather than prose (`DECISIONS.md` D33). It is a
+presentation of the results already reported above, not a new analysis
+and not a production system.
+
+**Structure (`DECISIONS.md` D33): the merchant view is the primary
+content, one short banner states the single most important honesty
+check, and the full disclosures are one tab over, not stacked above
+everything else.** A short top banner — the model detects a seller
+already gone quiet, faster than the naive rule, it does not predict
+distress weeks in advance — is always visible and points to a "Method &
+limitations" tab. That tab holds, unabridged, the same three checks this
+demo has always required: the full "what this model actually does"
+statement, the dynamic outcomes breakdown at whichever FAR is selected
+(the minority-benefit acceleration result, Sections 3/4), and the
+top-decile calibration caveat (Section 5) — nothing removed, nothing
+softened, one click away. The "Simulated policy action" panel is
+explicit that the model determines only the flag; the reserve percentage
+applied when flagged is a fixed `config/costs.yaml` assumption, not
+something the model sizes (Section 2, limitation 2).
 
 **Gap flagged in D30, confirmed closed rather than left stale (`DECISIONS.md`
 D31):** the demo reports the test-derived thresholds (36%/58%/6% at

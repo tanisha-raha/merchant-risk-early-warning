@@ -90,12 +90,16 @@ CUSTOM_CSS = f"""
 }}
 [data-testid="stMetricValue"] {{ color: {INK}; }}
 
-/* Named cards (st.container(key=...)): consistent gap between sections
-   so the page reads as distinct cards, not a touching stack. */
+/* Named cards (st.container(key=...)): generous padding, a subtle
+   shadow so they visibly lift off the page background, and consistent
+   gap below each one -- the vertical rhythm between sections. */
 .st-key-snapshot-card, .st-key-policy-card, .st-key-changed-card,
-.st-key-outcome-card, .st-key-costs-card, .st-key-econ-expander {{
-    margin-bottom: 1.85rem;
+.st-key-outcome-card, .st-key-costs-card {{
+    margin-bottom: 2rem;
+    padding: 0.5rem 0.25rem;
+    box-shadow: 0 1px 4px rgba(28, 31, 36, 0.05);
 }}
+.st-key-econ-expander {{ margin-bottom: 2rem; }}
 
 /* Honesty banners restyled as intentional callouts, not default
    error/warning chrome -- one accent bar, no icon (hard rule: no alert
@@ -244,24 +248,23 @@ def main() -> None:
         "scored live. Full evaluation and limitations: `README.md`, `DECISIONS.md`."
     )
 
-    # ---- required honesty banner #1, always visible, not collapsible ----
-    st.header("Read this first")
+    # ---- required honesty banner, always visible, not collapsible ----
+    # Full evaluation used to be spread across three banners occupying
+    # most of the page (D32). Restructured, not softened (DECISIONS.md
+    # D33): one short banner states the single most important sentence
+    # and points to "Method & limitations," which carries every word of
+    # the original text, unchanged, one click away.
     st.warning(
-        "**What this model actually does:** it does not predict distress weeks in advance "
-        "(checked directly — DECISIONS.md D13/D14 — discrimination is 0.53–0.59 AUC, near "
-        "chance, at every horizon tested before a seller's last order). What it does is "
-        "sometimes recognise a seller going quiet a little faster than a fixed rule that "
-        "simply waits eight silent weeks. The banner below updates for whichever false-alarm "
-        "rate is selected in the sidebar — read it before reading anything else on this page."
+        "**The model detects that a seller has already gone quiet, a little faster than a "
+        "fixed rule — it does not predict distress weeks in advance** (0.53–0.59 AUC on that "
+        "specific claim; near chance). Full evaluation, the outcomes breakdown at the FAR "
+        "selected below, and the calibration caveat are in **Method & limitations**, one tab "
+        "over."
     )
 
     # ---- sidebar: operating point ----
     st.sidebar.header("Operating point")
-    st.sidebar.caption(
-        "False-alarm rate (FAR), row-level: the share of a healthy seller's individual weekly "
-        "snapshots the model flags anyway (not the share of merchants — see below). Higher FAR "
-        "catches more real cessations, earlier, at the cost of more false alarms."
-    )
+    st.sidebar.caption("**FAR**: share of a healthy seller's weekly rows flagged as a false alarm.")
     far_options = sorted(acceleration["far"].unique())
     far = st.sidebar.selectbox(
         "False-alarm rate (FAR)",
@@ -272,71 +275,35 @@ def main() -> None:
     far_row = sweep.loc[sweep["false_alarm_rate"] == far].iloc[0]
     threshold = float(far_row["threshold"])
 
-    # Row-level and seller-level FAR are different quantities -- one
-    # healthy seller contributes many weekly rows, so "5% FAR" flags a
-    # much larger share of distinct sellers at least once. Shown together
-    # here rather than just the row-level number, matching README Section
-    # 3's footnote so this distinction is visible where FAR is chosen.
-    st.sidebar.markdown(f"**Weekly (row-level) false-alarm rate:** {far_label(far)}")
-    st.sidebar.caption(
-        f"Equivalent seller-level FAR in test set: **{far_row['seller_level_false_alarm_rate']:.1%}** "
-        "— the share of healthy sellers flagged at least once, not the share of weekly rows."
-    )
+    # Compact stat block, not prose (DECISIONS.md D33) -- row-level and
+    # seller-level FAR are different quantities (README Section 3's
+    # footnote), so both are shown, alongside this operating point's
+    # precision/recall, as labelled numbers rather than sentences.
     pr_row_far = precision_recall[precision_recall["far"] == far]
-    if len(pr_row_far):
-        pr = pr_row_far.iloc[0]
-        alerts_per_true = pr["n_flagged"] / pr["true_events_caught"] if pr["true_events_caught"] else float("nan")
-        st.sidebar.caption(
-            f"At this FAR: **{int(pr['n_flagged']):,} flagged rows**, **{int(pr['true_events_caught'])} "
-            f"true events caught**, **{pr['precision']:.1%} precision**, **{pr['recall']:.1%} recall** "
-            f"— roughly {alerts_per_true:.0f} alerts per true cessation row caught."
-        )
+    pr = pr_row_far.iloc[0] if len(pr_row_far) else None
+    stat_a, stat_b = st.sidebar.columns(2)
+    stat_a.metric("Row FAR", far_label(far))
+    stat_b.metric("Seller FAR", f"{far_row['seller_level_false_alarm_rate']:.1%}")
+    stat_c, stat_d = st.sidebar.columns(2)
+    stat_c.metric("Flagged rows", f"{int(pr['n_flagged']):,}" if pr is not None else "—")
+    stat_d.metric("True events", f"{int(pr['true_events_caught'])}" if pr is not None else "—")
+    stat_e, stat_f = st.sidebar.columns(2)
+    stat_e.metric("Precision", f"{pr['precision']:.1%}" if pr is not None else "—")
+    stat_f.metric("Recall", f"{pr['recall']:.1%}" if pr is not None else "—")
 
     accel_at_far = acceleration[acceleration["far"] == far]
     n_events = len(accel_at_far)
 
-    st.header(f"Outcomes at {far_label(far)} FAR")
-    if n_events == 0:
-        # Defensive: with the selector restricted above this shouldn't be
-        # reachable, but the artefact and the selector are two separate
-        # files -- if they ever drift apart again, show this instead of
-        # dividing by zero.
-        st.info(
-            f"No confirmed cessations are recorded at a {far_label(far)} false-alarm rate in "
-            "this demo's pre-computed artefacts — nothing to report at this operating point."
-        )
-    else:
-        n_never = int((accel_at_far["status"] == "never_flagged").sum())
-        n_beats = int((accel_at_far["status"] == "beats_rule").sum())
-        n_ties = int((accel_at_far["status"] == "ties_rule").sum())
-        if n_beats > 0:
-            median_accel = accel_at_far.loc[accel_at_far["status"] == "beats_rule", "acceleration_weeks"].median()
-            beats_clause = (
-                f"{n_beats} ({n_beats / n_events:.0%}) are flagged earlier, by a median of "
-                f"{median_accel:.1f} weeks. "
-            )
-        else:
-            beats_clause = f"{n_beats} ({n_beats / n_events:.0%}) are flagged earlier. "
-        st.info(
-            f"**At a {far_label(far)} false-alarm rate, on the {n_events} confirmed cessations in the "
-            f"test set:** {n_never} ({n_never / n_events:.0%}) are never flagged before the naive "
-            f"N=8-week rule would confirm them anyway — the model gives them nothing. "
-            f"{beats_clause}"
-            f"{n_ties} ({n_ties / n_events:.0%}) are flagged the same week "
-            "the rule would fire. This is a minority-benefit result, not broad early warning — "
-            "see DECISIONS.md D14 §2 / D21."
-        )
+    # Rendered inside the "Method & limitations" tab, below -- computed
+    # here because accel_at_far/n_events are also needed by the "known
+    # outcome" card in the merchant view.
 
     # ---- sidebar: merchant + week ----
     default_seller_id, default_alarm_week = default_merchant_and_week(acceleration)
 
     st.sidebar.divider()
     st.sidebar.header("Merchant")
-    st.sidebar.caption(
-        "Any seller in the held-out test window. Sellers with a confirmed cessation in the "
-        "test set are marked and listed first. Defaults to a merchant the model actually "
-        "flags, so the page below isn't empty on load."
-    )
+    st.sidebar.caption("Test-set sellers; confirmed cessations marked and listed first.")
     sellers = predictions[["seller_id", "category", "event_B"]].drop_duplicates("seller_id")
     sellers = sellers.sort_values(["event_B", "seller_id"], ascending=[False, True]).reset_index(drop=True)
     sellers["label"] = sellers.apply(
@@ -355,7 +322,7 @@ def main() -> None:
         default_week_idx = weeks_available.index(default_alarm_week.date())
     else:
         default_week_idx = len(weeks_available) - 1
-    st.sidebar.caption("Any week in this merchant's history within the test window.")
+    st.sidebar.caption("Any week in this merchant's test-window history.")
     week_choice = st.sidebar.selectbox("Week", weeks_available, index=default_week_idx)
     row = merchant_rows[merchant_rows["week"].dt.date == week_choice].iloc[0]
     row_idx = merchant_rows.index[merchant_rows["week"].dt.date == week_choice][0]
@@ -367,6 +334,26 @@ def main() -> None:
     wc_rate = costs["working_capital_cost_weekly_rate"]
     benefit_capture = costs["benefit_capture_rate"]
 
+    # ---- the merchant view is the primary content (DECISIONS.md D33);
+    # method and limitations are one tab over, not stacked above it ----
+    tab_merchant, tab_method = st.tabs(["Merchant view", "Method & limitations"])
+
+    with tab_merchant:
+        _render_merchant_view(
+            row, prev_row, merchant_rows, threshold, far, is_event, accel_at_far,
+            weekly_gmv, reserve_pct, wc_rate, benefit_capture, far_row, pr_row_far,
+            contrib_cols,
+        )
+
+    with tab_method:
+        _render_method_and_limitations(far, n_events, accel_at_far)
+
+
+def _render_merchant_view(
+    row, prev_row, merchant_rows, threshold, far, is_event, accel_at_far,
+    weekly_gmv, reserve_pct, wc_rate, benefit_capture, far_row, pr_row_far,
+    contrib_cols,
+) -> None:
     # ---- merchant snapshot: the focal point of the page ----
     st.header("Merchant snapshot")
     with st.container(border=True, key="snapshot-card"):
@@ -472,7 +459,7 @@ def main() -> None:
     if is_event:
         with st.container(border=True, key="outcome-card"):
             st.subheader("Known outcome in the test set (not a live prediction)")
-            outcome_row = accel_at_far[accel_at_far["seller_id"] == seller_id]
+            outcome_row = accel_at_far[accel_at_far["seller_id"] == row["seller_id"]]
             if len(outcome_row):
                 o = outcome_row.iloc[0]
                 status_text = {
@@ -522,8 +509,55 @@ def main() -> None:
                 "positive worth far more than each false positive costs, not because precision is high."
             )
 
-    # ---- required honesty banner #2, always visible, not collapsible ----
-    st.header("Read this too")
+
+def _render_method_and_limitations(far: float, n_events: int, accel_at_far: pd.DataFrame) -> None:
+    """Every word that used to occupy most of the page's visible area
+    (DECISIONS.md D33) -- relocated, not cut and not softened. Reachable
+    in one click from the short top banner."""
+    st.subheader("What this model actually does")
+    st.warning(
+        "**What this model actually does:** it does not predict distress weeks in advance "
+        "(checked directly — DECISIONS.md D13/D14 — discrimination is 0.53–0.59 AUC, near "
+        "chance, at every horizon tested before a seller's last order). What it does is "
+        "sometimes recognise a seller going quiet a little faster than a fixed rule that "
+        "simply waits eight silent weeks. The banner below updates for whichever false-alarm "
+        "rate is selected in the sidebar."
+    )
+
+    st.subheader(f"Outcomes at {far_label(far)} FAR")
+    if n_events == 0:
+        # Defensive: with the sidebar selector restricted to the FARs the
+        # acceleration artefact actually covers this shouldn't be
+        # reachable, but the artefact and the selector are two separate
+        # files -- if they ever drift apart again, show this instead of
+        # dividing by zero.
+        st.info(
+            f"No confirmed cessations are recorded at a {far_label(far)} false-alarm rate in "
+            "this demo's pre-computed artefacts — nothing to report at this operating point."
+        )
+    else:
+        n_never = int((accel_at_far["status"] == "never_flagged").sum())
+        n_beats = int((accel_at_far["status"] == "beats_rule").sum())
+        n_ties = int((accel_at_far["status"] == "ties_rule").sum())
+        if n_beats > 0:
+            median_accel = accel_at_far.loc[accel_at_far["status"] == "beats_rule", "acceleration_weeks"].median()
+            beats_clause = (
+                f"{n_beats} ({n_beats / n_events:.0%}) are flagged earlier, by a median of "
+                f"{median_accel:.1f} weeks. "
+            )
+        else:
+            beats_clause = f"{n_beats} ({n_beats / n_events:.0%}) are flagged earlier. "
+        st.info(
+            f"**At a {far_label(far)} false-alarm rate, on the {n_events} confirmed cessations in the "
+            f"test set:** {n_never} ({n_never / n_events:.0%}) are never flagged before the naive "
+            f"N=8-week rule would confirm them anyway — the model gives them nothing. "
+            f"{beats_clause}"
+            f"{n_ties} ({n_ties / n_events:.0%}) are flagged the same week "
+            "the rule would fire. This is a minority-benefit result, not broad early warning — "
+            "see DECISIONS.md D14 §2 / D21."
+        )
+
+    st.subheader("Calibration caveat")
     st.warning(
         "**Calibration caveat:** the highest-risk decile of predictions in back-testing is "
         "over-confident by roughly 2x (mean predicted 8.0% vs. mean actual 3.9%; DECISIONS.md "
