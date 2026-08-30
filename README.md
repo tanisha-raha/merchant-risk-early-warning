@@ -218,6 +218,15 @@ value" sweeps in the whole tied block at it, which does not usually sum
 to exactly the requested fraction. Close, not exact — the nominal label
 is still how this table and the rest of the document refer to each row.*
 
+**A related, more consequential question about this same table: would
+these thresholds still be close to their targets on a different slice
+of time, or were they only ever this close because they were quantiled
+from the test set they're evaluated on?** Checked below, not assumed —
+skip to *"Threshold-transfer robustness check"* at the end of this
+section for the answer (short version: no — a threshold set once and
+never recalibrated degrades 2.4x at the 5% target, which is a reason to
+recalibrate periodically in deployment, not just a footnote).
+
 **That result is far more robust than it has any right to look, given
 Section 3's near-null discrimination — checked, not assumed**
 (`DECISIONS.md` D17, `figures/phase4_tornado.png`). The breakeven value
@@ -645,9 +654,12 @@ hierarchy, and cards, all built to one hard rule: no gauges, no 0-100
 risk scores, no red/amber/green threat levels, no alert icons, nothing
 implying more confidence or precision than the evidence supports. No
 number or piece of logic on the page changed, only how it's presented.
-The sidebar states both the row-level FAR and its equivalent
-seller-level rate (not just the row-level number — see Section 3's
-footnote), plus that operating point's precision/recall, as a compact
+The sidebar states the row-level FAR as target and achieved together
+("5% → 5.9%," reading the achieved figure from the same artefact this
+document's Section 4 table reads — an earlier version showed only the
+nominal target, contradicting Section 4's own methodology, fixed in
+`DECISIONS.md` D34) plus the equivalent seller-level rate (Section 3's
+footnote) and that operating point's precision/recall, as a compact
 labelled stat block rather than prose (`DECISIONS.md` D33). It is a
 presentation of the results already reported above, not a new analysis
 and not a production system.

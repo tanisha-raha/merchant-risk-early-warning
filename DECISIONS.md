@@ -1827,3 +1827,100 @@ scrolling past caveats, the Method & limitations tab reproduces every
 original sentence unabridged, and the card shadow/padding change is
 visible without reading as new emphasis.
 
+### D34 — Demo's sidebar contradicted the README's own FAR methodology; fixed, plus a Section 4 findability check
+
+**The bug: the sidebar's "Row FAR" stat showed the nominal target as if
+it were the achieved figure.** Selecting 5% FAR showed "Row FAR: 5%,"
+but this project's own methodology (`DECISIONS.md` D29/D30) established
+that the achieved row-level FAR is a different, larger number —
+isotonic calibration's tie-plateaus mean a threshold quantiled to hit 5%
+actually flags 5.9% of test rows (2.5% at the 1% target, 12.0% at the
+10% target). README Section 4's table has carried both figures side by
+side since D30; the demo's sidebar never did, and quietly asserted the
+number the README explicitly corrected. Not a new finding — the numbers
+were already known and already in a committed artefact — the bug was
+that the demo's own UI wasn't reading them.
+
+**Fix: three FAR figures now shown, not one, read from the artefact
+that produces them rather than recomputed or hardcoded.**
+`load_data()` gained a fourth read, `figures/phase4_train_derived_thresholds.csv`
+filtered to `threshold_origin == "test_derived"` (the demo's own
+operating configuration — D31 restored test-derived as the headline
+after D30's brief detour) and indexed by `nominal_far` — the exact same
+artefact README Section 4's "achieved row-level FAR" column reads, so
+the two cannot drift apart the way the sidebar and the README just did.
+Sidebar now shows, as a single full-width `st.metric` (first attempt
+used a 3-column split — "5%," "5....," "19..." all truncated in the
+narrow sidebar, caught by screenshot before committing, not assumed to
+render fine): **"Row FAR: target → achieved" — "5% → 5.9%."** Seller
+FAR keeps its own full-width row below it (a fourth quantity, distinct
+from both row-level numbers), then flagged rows/true events and
+precision/recall stay as 2-column pairs, unchanged from D33.
+
+**Same fix applied to the Method & limitations tab's "Outcomes at X
+FAR" heading and banner, per instruction** — this made the identical
+mistake, one level of abstraction further from the sidebar than the
+first inspection caught. Heading changed from `f"Outcomes at
+{far_label(far)} FAR"` to `f"Outcomes at a {far_label(far)} FAR
+target{achieved_clause}"`, and the banner's own opening sentence
+("**At a 5% false-alarm rate, on the 237 confirmed cessations...**")
+gained the same `{achieved_clause}` — "(achieved 5.9% on this test
+set)" — inline, immediately after "target," not left for a reader to
+infer. `achieved` is computed once in `main()`'s sidebar block and
+passed into `_render_method_and_limitations()` rather than
+recomputed, so the sidebar stat and the Method tab's heading always
+agree by construction.
+
+**Checked, not assumed, that this was the full extent of it:** audited
+every `far_label(far)` call site in `app.py` (`grep -n`). Three were
+left unchanged after inspection, deliberately, because they don't make
+achieved-behaviour claims: "No additional reserve recommended at the 5%
+operating point" (says "operating point," already correctly framed as a
+setting label, not an achieved rate), "(threshold 0.0545 at 5% FAR)" in
+the policy-action card (names which threshold value was applied, with
+the exact threshold given alongside — not a rate claim), and "At 5%
+FAR, the model flagged this merchant 2 weeks before..." in the known-
+outcome card (a single merchant's flag timing, not a population-rate
+statistic to which achieved-vs-nominal applies). The distinction that
+matters: does the sentence claim something about what happened across
+the test set at this rate, or does it just name which sidebar setting
+produced this outcome? Only the first kind needed the fix.
+
+**README grep sweep, defensive, not expecting to find anything new**
+given how much scrutiny Sections 3-4 already got in D29-D31: checked
+every remaining "false-alarm rate"/"FAR" mention against this same
+test. All either already carry the achieved figure alongside (Section
+4's table, Section 3's footnotes), are clearly labelled "nominal" in a
+table header with a cross-reference to where achieved lives (Section
+5's precision/recall table, D29), or are prose narrating a table's own
+row labels immediately adjacent to that table (Section 4's opening
+paragraph, Section 5's recall sentence) — none found making a bare,
+unlabelled achieved-behaviour claim. Nothing changed in the README as a
+result of this sweep; the gap was specific to `app.py`.
+
+**Second task: a findability check, not new analysis.** The threshold-
+transfer robustness check (D30's finding, corrected framing in D31) has
+been fully written up in Section 4 since D31 — the question was whether
+a reader would actually find it. They wouldn't have reliably: it sits
+after the sensitivity/tornado subsection, which is a different topic
+(cost-*parameter* ranges, not FAR *threshold* selection) that a reader
+skimming Section 4's headline table has no reason to read through first.
+Added one pointer immediately after the headline table's own footnote,
+before the unrelated tornado paragraph begins: states the question
+plainly ("would these thresholds still be close to their targets on a
+different slice of time"), gives the one-line answer (2.4x degradation
+at the 5% target), and names the subsection to skip to by its exact
+heading text. Section 3's footnote 2 already pointed to "Section 4"
+generally (D31); this makes the pointer land at the specific subsection
+once inside Section 4, not just at the top of it.
+
+Verified: `ruff check app.py` clean. `streamlit.testing.v1.AppTest`
+re-run across all three FAR options and both an explicit event and
+non-event merchant — no exceptions; the default run's metric list now
+reads `'5% → 5.9%'` where it previously read `'5%'`, confirming the
+combined stat renders with real artefact data at every FAR, not a
+placeholder. Rendered for real and screenshotted twice (headless
+Chromium) — once to catch the 3-column truncation, once after the
+full-width fix to confirm "5% → 5.9%" renders without wrapping.
+`pytest` unaffected (5 passed, no `src/`/`tests/` files touched).
+

@@ -189,9 +189,18 @@ def load_data():
     )
     sweep = pd.read_csv(FIG_DIR / "phase4_calibrated_sweep.csv")
     precision_recall = pd.read_csv(FIG_DIR / "phase4_precision_recall.csv")
+    # Same artefact README Section 4's "achieved row-level FAR" column
+    # reads (DECISIONS.md D29/D30/D34) -- the nominal FAR a threshold
+    # targets and the row-level FAR it actually achieves on test differ
+    # (isotonic tie-plateaus), and this is the one place that gap is
+    # measured, so it's read here rather than duplicated/hardcoded.
+    achieved_far = pd.read_csv(FIG_DIR / "phase4_train_derived_thresholds.csv")
+    achieved_far = achieved_far[achieved_far["threshold_origin"] == "test_derived"].set_index("nominal_far")[
+        "achieved_row_level_far"
+    ]
     with open("config/costs.yaml") as f:
         costs = yaml.safe_load(f)
-    return predictions, gmv, acceleration, sweep, precision_recall, costs
+    return predictions, gmv, acceleration, sweep, precision_recall, achieved_far, costs
 
 
 def default_merchant_and_week(acceleration: pd.DataFrame) -> tuple[str, pd.Timestamp]:
@@ -237,7 +246,7 @@ def main() -> None:
     st.set_page_config(page_title="Reserve decision engine (demo)", layout="wide")
     st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
-    predictions, gmv, acceleration, sweep, precision_recall, costs = load_data()
+    predictions, gmv, acceleration, sweep, precision_recall, achieved_far_lookup, costs = load_data()
     contrib_cols = [c for c in predictions.columns if c.startswith("contrib__")]
 
     st.title("Reserve decision engine")
@@ -275,15 +284,23 @@ def main() -> None:
     far_row = sweep.loc[sweep["false_alarm_rate"] == far].iloc[0]
     threshold = float(far_row["threshold"])
 
-    # Compact stat block, not prose (DECISIONS.md D33) -- row-level and
-    # seller-level FAR are different quantities (README Section 3's
-    # footnote), so both are shown, alongside this operating point's
-    # precision/recall, as labelled numbers rather than sentences.
+    # Compact stat block, not prose (DECISIONS.md D33). Target and
+    # achieved row-level FAR are different numbers (isotonic tie-
+    # plateaus, D29/D30 -- 5% nominal achieves 5.9%, 1% achieves 2.5%,
+    # 10% achieves 12.0%), and showing only "5%" here contradicted the
+    # README's own methodology (DECISIONS.md D34). Achieved figure is
+    # read from the same artefact README Section 4's table reads, not
+    # hardcoded, so the two can't drift apart.
     pr_row_far = precision_recall[precision_recall["far"] == far]
     pr = pr_row_far.iloc[0] if len(pr_row_far) else None
-    stat_a, stat_b = st.sidebar.columns(2)
-    stat_a.metric("Row FAR", far_label(far))
-    stat_b.metric("Seller FAR", f"{far_row['seller_level_false_alarm_rate']:.1%}")
+    achieved = achieved_far_lookup.get(far)
+    # Full-width, not a 3-column split -- "target -> achieved" needs more
+    # room than a narrow sidebar column gives it without truncating.
+    st.sidebar.metric(
+        "Row FAR: target → achieved",
+        f"{far_label(far)} → {achieved:.1%}" if achieved is not None else far_label(far),
+    )
+    st.sidebar.metric("Seller FAR", f"{far_row['seller_level_false_alarm_rate']:.1%}")
     stat_c, stat_d = st.sidebar.columns(2)
     stat_c.metric("Flagged rows", f"{int(pr['n_flagged']):,}" if pr is not None else "—")
     stat_d.metric("True events", f"{int(pr['true_events_caught'])}" if pr is not None else "—")
@@ -346,7 +363,7 @@ def main() -> None:
         )
 
     with tab_method:
-        _render_method_and_limitations(far, n_events, accel_at_far)
+        _render_method_and_limitations(far, achieved, n_events, accel_at_far)
 
 
 def _render_merchant_view(
@@ -510,7 +527,9 @@ def _render_merchant_view(
             )
 
 
-def _render_method_and_limitations(far: float, n_events: int, accel_at_far: pd.DataFrame) -> None:
+def _render_method_and_limitations(
+    far: float, achieved: float | None, n_events: int, accel_at_far: pd.DataFrame
+) -> None:
     """Every word that used to occupy most of the page's visible area
     (DECISIONS.md D33) -- relocated, not cut and not softened. Reachable
     in one click from the short top banner."""
@@ -524,7 +543,12 @@ def _render_method_and_limitations(far: float, n_events: int, accel_at_far: pd.D
         "rate is selected in the sidebar."
     )
 
-    st.subheader(f"Outcomes at {far_label(far)} FAR")
+    # "Target" throughout, not "at X% FAR" bare -- the achieved row-level
+    # FAR differs from the nominal target (isotonic tie-plateaus, D29/
+    # D30), and stating only the nominal number here would make the same
+    # nominal-as-achieved claim the sidebar used to (DECISIONS.md D34).
+    achieved_clause = f" (achieved {achieved:.1%} on this test set)" if achieved is not None else ""
+    st.subheader(f"Outcomes at a {far_label(far)} FAR target{achieved_clause}")
     if n_events == 0:
         # Defensive: with the sidebar selector restricted to the FARs the
         # acceleration artefact actually covers this shouldn't be
@@ -532,7 +556,7 @@ def _render_method_and_limitations(far: float, n_events: int, accel_at_far: pd.D
         # files -- if they ever drift apart again, show this instead of
         # dividing by zero.
         st.info(
-            f"No confirmed cessations are recorded at a {far_label(far)} false-alarm rate in "
+            f"No confirmed cessations are recorded at a {far_label(far)} false-alarm rate target in "
             "this demo's pre-computed artefacts — nothing to report at this operating point."
         )
     else:
@@ -548,9 +572,9 @@ def _render_method_and_limitations(far: float, n_events: int, accel_at_far: pd.D
         else:
             beats_clause = f"{n_beats} ({n_beats / n_events:.0%}) are flagged earlier. "
         st.info(
-            f"**At a {far_label(far)} false-alarm rate, on the {n_events} confirmed cessations in the "
-            f"test set:** {n_never} ({n_never / n_events:.0%}) are never flagged before the naive "
-            f"N=8-week rule would confirm them anyway — the model gives them nothing. "
+            f"**At a {far_label(far)} false-alarm rate target{achieved_clause}, on the {n_events} confirmed "
+            f"cessations in the test set:** {n_never} ({n_never / n_events:.0%}) are never flagged before "
+            f"the naive N=8-week rule would confirm them anyway — the model gives them nothing. "
             f"{beats_clause}"
             f"{n_ties} ({n_ties / n_events:.0%}) are flagged the same week "
             "the rule would fire. This is a minority-benefit result, not broad early warning — "
