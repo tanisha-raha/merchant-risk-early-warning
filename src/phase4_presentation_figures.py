@@ -265,16 +265,17 @@ def _fig3_render(threshold: float, achieved_far: float, subtitle: str, out_name:
 
 def fig3_model_vs_rule() -> None:
     """Two versions of this figure, both CALIBRATED (D21), differing only
-    in where the nominal-5%-FAR threshold comes from (DECISIONS.md D29/
-    D30): `readme_model_vs_rule.png` uses the TRAIN-derived threshold --
-    this project's headline framing as of D30, since the achieved test FAR
-    it produces (12.0%) differs materially from the 5% nominal target, and
-    that is the more honest, deployment-realistic number.
-    `readme_model_vs_rule_test_derived.png` keeps the original
-    test-quantile threshold (exact 5% test FAR by construction) as the
-    explicitly-labelled comparison. Matches the demo and
+    in where the nominal-5%-FAR threshold comes from (DECISIONS.md D29-
+    D31): `readme_model_vs_rule.png` uses the TEST-derived threshold --
+    this project's headline (D21/D26, reaffirmed D31 after a brief D30
+    detour that promoted the train-derived number, then corrected once
+    the matched-achieved-FAR check showed that "improvement" was just a
+    looser threshold, not a better method). Matches the demo and
     figures/demo_event_acceleration.csv, which report the same pair
-    (`src/prepare_demo_data.py`)."""
+    (`src/prepare_demo_data.py`).
+    `readme_model_vs_rule_train_derived.png` keeps the TRAIN-derived
+    threshold (the threshold-transfer robustness check, Section 4) as
+    the explicitly-labelled, non-headline figure."""
     raw_dir = Path("data/raw")
     panel = build_panel(raw_dir)
     features_df = build_features(raw_dir)
@@ -301,17 +302,17 @@ def fig3_model_vs_rule() -> None:
     test_achieved = float((test_neg_scores >= test_threshold).mean())
     train_achieved = float((test_neg_scores >= train_threshold).mean())
 
-    print("=== train-derived threshold (headline, D30) ===")
-    _fig3_render(
-        train_threshold, train_achieved,
-        "At a nominal 5% false-alarm rate, threshold chosen from TRAIN data (calibrated model)",
-        "readme_model_vs_rule.png", fit, features_df, calibrator,
-    )
-    print("=== test-derived threshold (comparison) ===")
+    print("=== test-derived threshold (headline, D21/D26/D31) ===")
     _fig3_render(
         test_threshold, test_achieved,
         "At a nominal 5% false-alarm rate, threshold chosen from TEST data (calibrated model)",
-        "readme_model_vs_rule_test_derived.png", fit, features_df, calibrator,
+        "readme_model_vs_rule.png", fit, features_df, calibrator,
+    )
+    print("=== train-derived threshold (threshold-transfer robustness check) ===")
+    _fig3_render(
+        train_threshold, train_achieved,
+        "At a nominal 5% false-alarm rate, threshold chosen from TRAIN data (calibrated model)",
+        "readme_model_vs_rule_train_derived.png", fit, features_df, calibrator,
     )
 
 

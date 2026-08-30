@@ -124,69 +124,63 @@ close to no signal at any distance tested.
 What the model can do is **detect that a seller has already gone quiet**,
 and detect it faster than a payments team manually waiting out a fixed
 eight-week silence rule would. The honest headline sentence, replacing
-"predicts distress N weeks in advance": **targeting a 5% false-alarm
-rate,¹ ² the model beats the naive eight-week silence rule for 67% of
-cessations, by a median of 2.0 weeks — and provides no benefit at all
-over the naive rule for the other 27%** (the remaining 6% are flagged
-the same week the rule fires — neither an early win nor a miss;
-`DECISIONS.md` D21, D29, D30). The lead-time distribution is
-right-skewed with a long tail out to 17 weeks for a minority of cases,
-but the median case is a two-week head start, not the multi-week advance
-warning the project set out to find. The 27% figure is not a footnote —
-it is shown at the top of the next section, not buried in a caption.
+"predicts distress N weeks in advance": **at a 5% false-alarm rate,¹ ²
+the model beats the naive eight-week silence rule for 36% of cessations,
+by a median of 2.0 weeks — and provides no benefit at all over the naive
+rule for the other 58%** (the remaining 6% are flagged the same week
+the rule fires — neither an early win nor a miss; `DECISIONS.md` D21,
+D26, D31). The lead-time distribution is right-skewed with a long tail
+out to 17 weeks for a minority of cases, but the median case is a
+two-week head start, not the multi-week advance warning the project set
+out to find. The 58% figure is not a footnote — it is shown at the top
+of the next section, not buried in a caption.
 
 ¹ *Row-level: the share of a healthy seller's individual weekly
 test-period rows that cross the threshold, not the share of sellers —
 one seller contributes many rows, so this is not "5% of merchants get
 flagged." The equivalent seller-level rate at this operating point is
-37.0% (Section 4's threshold-selection table). Every "FAR" figure in
-this document is row-level unless labelled otherwise.*
+19.4% (Section 4's headline table). Every "FAR" figure in this document
+is row-level unless labelled otherwise.*
 
-² *"Targeting" is the operative word, and this is the more consequential
-footnote of the two. This threshold was chosen from TRAIN data only
-(the quantile of TRAIN censored-row scores that would hit 5% on TRAIN),
-then applied unchanged to the test set — a genuinely out-of-sample
-operating point, not one tuned to land on 5% by construction. Applied to
-test data, it achieves a **12.0% row-level FAR, not 5%** — checked and
-quantified, not assumed away (`DECISIONS.md` D29, D30; Section 4 has the
-full comparison). A second version of this same 5%-nominal number exists
-elsewhere in this document: a threshold chosen directly from the TEST
-set's own censored rows. That one comes much closer to its own target —
-5.9%, not exactly 5% either — because isotonic calibration collapses
-scores into ~46 discrete levels (the same tie-plateau mechanism D21/D23
-already document for precision), so no quantile cut lands perfectly on
-an arbitrary target when the underlying values are this discretised.
-"Exact by construction" is therefore the wrong way to describe even the
-test-derived number, corrected here rather than left as an overclaim
-once checked directly (`DECISIONS.md` D30). It is still far closer to
-its 5% target than the train-derived threshold is to its 5% target
-(5.9% vs. 12.0%), which is the actual comparison that matters. The
-test-derived version gives a smaller, still-real result — 36%/58%/6%
-instead of 67%/27%/6% — and is reported as the labelled comparison in
-Section 4, not hidden. The gap between the two thresholds' behaviour is
-the actual price of not having a validation split: this project has
-train and test only, so "choose a threshold ahead of time and see what
-FAR it achieves on new data" and "choose a threshold that comes as close
-as possible to a target FAR on that same data" cannot both be done on
-one held-out set at once. The interactive demo (`app.py`) still reports
-the test-derived (36%/58%/6%) version as of this writing — a known,
-flagged inconsistency, not yet fixed (`DECISIONS.md` D30).*
+² *This threshold is a quantile of the TEST set's own censored-row
+scores — not independently validated, but it is what this document leads
+with, and here is why (`DECISIONS.md` D29–D31; Section 4 has the full
+numbers). Checked directly rather than assumed: it does not land on
+exactly 5% even on the population it was quantiled from — the achieved
+figure is **5.9%** — because isotonic calibration collapses scores into
+~46 discrete levels (the same tie-plateau mechanism D21/D23 document for
+precision), and a quantile cut lands on one of those levels rather than
+exactly on an arbitrary target. A separate check asked whether a
+threshold chosen from TRAIN data only, then applied unchanged to test,
+would land close to this one — i.e. whether this operating point would
+survive being inherited rather than recalibrated. It does not: the
+TRAIN-derived threshold achieves **12.0%**, not 5%, on test — a 2.4x
+transfer degradation, driven by the row-level event rate itself drifting
+0.53% (train) → 0.68% (test). That is a real deployment caveat (Section
+4 states it as one), not a better number to lead with — at matched
+achieved FAR the two methods turn out to give substantially the same
+economics anyway (Section 4's matched-FAR table), so the apparent size
+of the train-derived "improvement" was a looser threshold in disguise,
+not a better method. Corrected here after an earlier draft of this
+section briefly led with the train-derived number before that check was
+run (`DECISIONS.md` D30, D31).*
 
 *A note on which numbers are which, stated once here and not repeated as
-a caveat everywhere below. Three versions of this split exist in this
-document's history, and only the first is current: **train-derived,
-calibrated (67%/27%/6%)** — this section's headline, the most honest
-number available given no third validation split exists (D29, D30).
-**Test-derived, calibrated (36%/58%/6%)** — threshold quantiled from the
-test set itself, achieving 5.9% not exactly 5% (footnote 2, above),
-previously this section's headline before D30, now the labelled
-comparison in Section 4. **Pre-calibration (30%/65%/5%)** — the earliest
-version, measured before D21's calibration check existed, appears only
-in Section 5 where that check is discussed.*
+a caveat everywhere below: this 36%/58%/6% split is on the calibrated
+model — D21 established calibration as this project's operating
+configuration, and this is what the interactive demo (`app.py`) also
+reports, so the two agree. The pre-calibration split was 30%/65%/5%
+(`DECISIONS.md` D14 §2) — a real, previously-reported number, not wrong,
+just measured before calibration; it appears clearly labelled as the
+"pre-calibration comparison" in Section 5, where D21's calibration check
+is discussed, and nowhere else in this document. The train-derived
+transfer-check split (67%/27%/6%, footnote 2) is a robustness finding
+about threshold inheritance, not a competing headline — it lives in
+Section 4, not here.*
 
 ## 4. Economic comparison
 
-![Model vs. the operational baseline, train-derived threshold: what happens to all 237 test-period cessations](figures/readme_model_vs_rule.png)
+![Model vs. the operational baseline: what happens to all 237 test-period cessations](figures/readme_model_vs_rule.png)
 
 The brief's original plan for this section was a comparison against four
 baselines (flat reserve, category-based, tenure-based, a binary
@@ -199,63 +193,30 @@ policy against the naive N=8-week silence rule itself, which is the
 rule any of those four baselines would have to beat too, and the one
 already running today in this problem's static-reserve framing.
 
-**Threshold-selection check, done before trusting any FAR figure below
-(`DECISIONS.md` D29, D30):** every threshold in this section, until now,
-was a quantile of the *test set's own* censored-row scores — chosen from
-data no downstream number was meant to be validated against, not from a
-genuinely separate split. That is real and worth bounding, not just
-disclosing. Fix, at no cost to train size and without a third split:
-derive thresholds from **TRAIN** censored rows only, at the same nominal
-1%/5%/10% targets, apply them unchanged to test, and report whatever FAR
-they actually achieve there.
+Swept the row-level false-alarm rate from 1% to 10% and priced both
+sides in R$ per 1,000 merchant-weeks, **on the calibrated model**
+(`DECISIONS.md` D21, D26 — this project's operating configuration; the
+pre-calibration numbers are in Section 5, clearly labelled, not here):
+the model-based policy beats the rule **at every false-alarm rate
+tested**, and the margin widens as the rate loosens — from
+-R$16.50/1,000 merchant-weeks at 1% FAR to -R$155.33/1,000 merchant-weeks
+at 10% FAR (negative = the model saves money).
 
-| nominal FAR | threshold | achieved row-level FAR | achieved seller-level FAR | events accelerated | net Δcost / 1,000mw | precision | recall |
-|---:|---:|---:|---:|---:|---:|---:|---:|
-| 1% | 0.051335 | 7.3% | 23.9% | 107/237 | -R$110.88 | 4.1% | 47.3% |
-| 5% | 0.040000 | 12.0% | 37.0% | 158/237 | -R$155.33 | 3.7% | 70.0% |
-| 10% | 0.012987 | 15.6% | 47.2% | 207/237 | -R$189.60 | 3.8% | 94.9% |
-
-**The achieved FAR moved materially — this is the headline table now,
-not the comparison.** At the nominal 5% point, the TRAIN-derived
-threshold flags **12.0%** of test-period healthy-seller rows, not 5% —
-2.4x the target, and closer to what the TEST-derived table below calls
-its "10%" point than its "5%" point. The economics move with it: net
-Δcost at nominal 5% goes from -R$98.03 (test-derived) to -R$155.33
-(train-derived) per 1,000 merchant-weeks, and events accelerated from
-85/237 to 158/237. **One number does not move: the median lead time for
-events the model does beat the rule on stays 2.0 weeks in both.** The
-drift is entirely in *how many* events get that benefit, not in *how
-much* benefit each one gets. Mechanism, quantified rather than
-hand-waved: the row-level event rate itself drifts train→test, 0.53% →
-0.68% (1.28x) — a shift in the underlying score distribution large
-enough that a threshold calibrated to the lower-hazard TRAIN period ends
-up well inside the higher-hazard TEST period's own distribution, not at
-its edge. **No sign flip anywhere: the model beats the rule at every
-nominal FAR under both threshold-selection methods.** What is not robust
-to the choice is the exact size of the win, not its direction.
-
-**Comparison: thresholds chosen from the test set itself, not
-independently validated** — this section's headline before D30, kept
-here as the labelled comparison, not deleted (`DECISIONS.md` D21, D26,
-D29):
-
-| nominal FAR | threshold | achieved row-level FAR | achieved seller-level FAR | events accelerated | net Δcost / 1,000mw | precision | recall |
-|---:|---:|---:|---:|---:|---:|---:|---:|
-| 1% | 0.200000 | 2.5%* | 11.5% | 26/237 | -R$16.50 | 3.5% | 13.1% |
-| 5% | 0.054545 | 5.9%* | 19.4% | 85/237 | -R$98.03 | 4.2% | 38.8% |
-| 10% | 0.040389 | 12.0%* | 36.9% | 158/237 | -R$155.33 | 3.7% | 70.0% |
+| nominal FAR | achieved row-level FAR* | events accelerated | net Δcost / 1,000 merchant-weeks | seller-level FAR |
+|---:|---:|---:|---:|---:|
+| 1% | 2.5% | 26/237 | -R$16.50 | 11.5% |
+| 5% | 5.9% | 85/237 | -R$98.03 | 19.4% |
+| 10% | 12.0% | 158/237 | -R$155.33 | 36.9% |
 
 *\*Not exactly the nominal target even though this threshold IS a
-quantile of this exact population — checked directly, an assumption
+quantile of this exact test population — checked directly, an assumption
 corrected once verified, not asserted (`DECISIONS.md` D30). Isotonic
 calibration collapses raw scores into ~46 discrete levels (the same
 tie-plateau mechanism D21/D23 already document for non-monotonic
 precision); a quantile cut lands on one of those 46 values, and "≥ that
 value" sweeps in the whole tied block at it, which does not usually sum
-to exactly the requested fraction. Still much closer to nominal than the
-train-derived threshold manages at the same targets (2.5%/5.9%/12.0%
-here vs. 7.3%/12.0%/15.6% there) — "exact by construction" was the wrong
-description, but "close by construction" still holds directionally.*
+to exactly the requested fraction. Close, not exact — the nominal label
+is still how this table and the rest of the document refer to each row.*
 
 **That result is far more robust than it has any right to look, given
 Section 3's near-null discrimination — checked, not assumed**
@@ -270,26 +231,90 @@ capture is structurally the realistic end of that parameter, not the
 optimistic one. A tornado plot across generous, honestly-wide ranges
 picked before seeing where breakeven fell never crosses zero.
 
-*This sensitivity analysis (D17) was run on the pre-calibration,
-test-derived sweep (D16) and has not been re-run against either
-calibrated table above — flagged here rather than left implicit
-(`DECISIONS.md` D26, D30). It answers a different question (how far can
-the cost *parameters* move before the sign flips) than the
-threshold-selection check above (where does the FAR *threshold* itself
-come from), so the two caveats are independent, not duplicates. Since
-both calibration (Section 5) and the train-derived threshold above made
-the economics more favourable, not less, there is no reason to expect
-the breakeven values to move in the direction that would matter (i.e.
-become more plausible) — but that is a reasonable expectation, not a
-checked number, and shouldn't be read as one.*
+*This sensitivity analysis (D17) was run on the pre-calibration sweep
+(D16) and has not been re-run on the calibrated numbers above — flagged
+here rather than left implicit (`DECISIONS.md` D26). Since calibration
+made the raw economics more favourable, not less (Section 5), there is
+no reason to expect the breakeven values to move in the direction that
+would matter (i.e. become more plausible) — but that is a reasonable
+expectation, not a checked number, and shouldn't be read as one.*
 
 ![Sensitivity tornado](figures/phase4_tornado.png)
 
-*The comparison figure showing the same breakdown for the test-derived
-threshold is `figures/readme_model_vs_rule_test_derived.png` — not
-embedded here to avoid duplicating the table above, but generated by the
-same script (`src/phase4_presentation_figures.py`) and available in the
-repository.*
+### Threshold-transfer robustness check: what if this threshold were inherited, not recalibrated?
+
+Every threshold above is a quantile of the *test set's own* censored-row
+scores — the right way to report this project's evaluated result, but
+not a check of whether that specific threshold *value* would still make
+sense on a different slice of time. Checked directly rather than left
+implicit (`DECISIONS.md` D29–D31): derive thresholds from **TRAIN**
+censored rows only, at the same nominal 1%/5%/10% targets, apply them
+unchanged to test, and see what FAR they actually achieve there — the
+scenario a real deployment would face if a threshold were set once from
+historical data and never recalibrated.
+
+| nominal FAR | threshold | achieved row-level FAR | achieved seller-level FAR | events accelerated | net Δcost / 1,000mw |
+|---:|---:|---:|---:|---:|---:|
+| 1% | 0.051335 | 7.3% | 23.9% | 107/237 | -R$110.88 |
+| 5% | 0.040000 | 12.0% | 37.0% | 158/237 | -R$155.33 |
+| 10% | 0.012987 | 15.6% | 47.2% | 207/237 | -R$189.60 |
+
+**Transfer degrades the operating point 2.4x at the nominal 5% target —
+not an improvement, a caveat.** A threshold set from TRAIN to hit 5% on
+TRAIN achieves 12.0% on TEST, not 5% (7.3x at the 1% target; 1.6x at the
+10% target). Mechanism, quantified rather than hand-waved: the row-level
+event rate itself drifts 0.53% (train) → 0.68% (test) — a base-rate
+shift large enough that a threshold calibrated to the lower-hazard TRAIN
+period sits well inside the higher-hazard TEST period's distribution,
+not at its edge. **The practical reading is about deployment, not about
+this table looking better:** a threshold inherited from historical data
+without recalibration would run measurably looser than intended, and
+that is a real operational risk this project would flag to anyone
+deploying it — thresholds need periodic recalibration against recent
+data, not a one-time fit.
+
+**Does the loosened threshold actually mean the transfer method is
+*better*, though — or just that it's operating at a different, looser
+FAR than the table above it?** Checked, not assumed: the table below
+merges all six thresholds computed above (three test-derived, three
+train-derived) and sorts by *achieved* row-level FAR instead of nominal
+target, so origins land next to whichever one they actually resemble on
+the population that matters.
+
+| achieved row-level FAR | origin | nominal target | events accelerated | net Δcost / 1,000mw | precision | recall |
+|---:|---|---:|---:|---:|---:|---:|
+| 2.5% | test-derived | 1% | 26/237 | -R$16.50 | 3.5% | 13.1% |
+| 5.9% | test-derived | 5% | 85/237 | -R$98.03 | 4.2% | 38.8% |
+| 7.3% | train-derived | 1% | 107/237 | -R$110.88 | 4.1% | 47.3% |
+| **12.0%** | **test-derived** | **10%** | **158/237** | **-R$155.33** | **3.7%** | **70.0%** |
+| **12.0%** | **train-derived** | **5%** | **158/237** | **-R$155.33** | **3.7%** | **70.0%** |
+| 15.6% | train-derived | 10% | 207/237 | -R$189.60 | 3.8% | 94.9% |
+
+**At the one point where the two methods land on essentially the same
+achieved FAR (12.0%, bolded), they give essentially the same economics —
+checked, not assumed:** net Δcost -R$155.3304 (test-derived, nominal
+10%) vs. -R$155.3255 (train-derived, nominal 5%), a R$0.005/1,000mw
+difference; identical events accelerated (158/237); recall identical to
+four decimal places (70.0422%); precision within 0.01 points (3.6848% vs.
+3.6766%). **The earlier framing of this check — that train-derived
+numbers looked better, so they should lead — was wrong, and this table
+is why:** the apparent improvement at nominal 5% was the same model
+operating at a substantially looser threshold, not a better
+threshold-selection method. Origin doesn't move the economics once FAR
+is held fixed; only FAR does. The other four rows don't have a
+close cross-origin match — this project computed three thresholds per
+origin, not a dense grid, so most achieved-FAR bands are only covered by
+one method or the other. That is a real limit on how far this check
+generalises (a denser grid would let every band be compared, not
+attempted here), not a reason to doubt the one comparison that is
+directly checkable.
+
+*The figure showing this same test-derived breakdown is embedded above;
+the equivalent breakdown for the train-derived (threshold-transfer)
+threshold is `figures/readme_model_vs_rule_train_derived.png` — not
+embedded here to avoid a second large figure making the same point the
+matched-FAR table already makes, but generated by the same script
+(`src/phase4_presentation_figures.py`) and available in the repository.*
 
 ## 5. Calibration evidence
 
@@ -505,18 +530,14 @@ uncalibrated numbers are preserved in `DECISIONS.md` D20, not overwritten;
 `DECISIONS.md` D27 records exactly what changed. Two slices flip
 conclusion under calibration — reported below, not buried.*
 
-*One further gap, found after this section was last re-run and flagged
-rather than silently left: this section's threshold is the test-derived
-5% threshold (D21), not the train-derived one Sections 3-4 now lead with
-(D29, D30). Re-running slice economics against the train-derived
-threshold would mean re-deriving every margin below, not just relabelling
-them — not done this round. Given the train-derived threshold flags a
-much larger share of test rows (12.0% vs. 5.9% achieved), the plausible
-direction is that per-slice benefit grows across the board the same way
-the aggregate economics did (Section 4), not that any currently-winning
-slice flips to losing — but that is an expectation carried over from
-Section 4's pattern, not a number checked at the slice level, and should
-not be read as one.*
+*A gap flagged here briefly (D30) is now closed, not just stale: this
+section's threshold is the test-derived 5% threshold (D21), which
+Sections 3-4 lead with again as of D31 — a train-derived alternative
+was promoted to the headline for one revision and then reverted once a
+matched-achieved-FAR check showed it wasn't actually a better result,
+just a looser threshold (`DECISIONS.md` D31). Confirmed consistent, not
+assumed: this section was never rebuilt against the train-derived
+number, so nothing here needed to change back.*
 
 Extended Section 4's economics to four slice dimensions — tenure at test
 start, merchant size (weekly GMV quartile), dominant product category,
@@ -633,13 +654,13 @@ flag; the reserve percentage applied when flagged is a fixed
 `config/costs.yaml` assumption, not something the model sizes (Section
 2, limitation 2).
 
-**Known gap, flagged rather than silently left (`DECISIONS.md` D30):**
-the demo still reports the test-derived thresholds (36%/58%/6% at
-nominal 5% FAR), which Section 3/4 no longer treat as the headline —
-that is now the train-derived version (67%/27%/6%, 12.0% achieved FAR).
-Not rebuilt this round; `src/prepare_demo_data.py` would need its
-threshold source changed and its artefacts regenerated, the same
-mechanical size of change as D26's original demo build.
+**Gap flagged in D30, confirmed closed rather than left stale (`DECISIONS.md`
+D31):** the demo reports the test-derived thresholds (36%/58%/6% at
+nominal 5% FAR), which is again what Sections 3-4 lead with — a
+train-derived alternative briefly displaced it as the headline and was
+reverted once checked further (D31). The demo was never rebuilt against
+that train-derived number, so it needed no change back and was never
+actually inconsistent for longer than one revision.
 
 **Run it:**
 
