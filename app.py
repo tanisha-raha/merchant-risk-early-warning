@@ -10,6 +10,15 @@ This is a demonstration of an evaluated research result on a historical
 test set, not a production system, and the result it demonstrates is
 measured and modest, not a product pitch -- see DECISIONS.md D13/D14/D16/
 D19/D21 for the full evidence behind every number surfaced here.
+
+Visual design (DECISIONS.md D32): one considered palette (`.streamlit/
+config.toml` + the CSS block in `main()`), applied consistently. The one
+sanctioned exception to "one accent" is the feature-contribution chart,
+where a second colour encodes a genuinely signed quantity. No gauges, no
+0-100 risk scores, no red/amber/green threat levels, no alert icons --
+a hazard estimate does not have a "danger level," and nothing here should
+imply more confidence or precision than 0.68 AUC and a minority-benefit
+result support.
 """
 
 from __future__ import annotations
@@ -34,6 +43,19 @@ FIG_DIR = Path("figures")
 # covers fixes that at the source rather than papering over it per FAR.
 DEFAULT_FAR = 0.05
 
+# One considered palette, matching .streamlit/config.toml, defined once
+# and reused for both the CSS block and the Altair charts so the two
+# can't drift apart. ACCENT is the one colour used throughout the page;
+# ACCENT_WARM is the single sanctioned exception -- signed feature
+# contributions genuinely have a direction, so that chart alone earns a
+# second colour (DECISIONS.md D32).
+ACCENT = "#2F6F8F"
+ACCENT_WARM = "#B5602E"
+INK = "#1C1F24"
+INK_MUTED = "#646B78"
+CARD = "#FFFFFF"
+BORDER = "#E1DFD8"
+
 FAMILY_LABELS = {
     "cancel_rate": "Cancellation rate",
     "ship_latency": "Ship latency (purchase→carrier)",
@@ -47,6 +69,69 @@ FAMILY_LABELS = {
     "top_buyer_revenue_share": "Top-buyer revenue concentration",
 }
 SUFFIX_LABELS = {"level": "level", "trend": "trend", "accel": "acceleration"}
+
+CUSTOM_CSS = f"""
+<style>
+/* ---- one clean block, one palette, applied throughout ---- */
+
+/* Section headings get real breathing room -- generous whitespace does
+   the work of separating sections, not extra divider lines. */
+[data-testid="stHeading"] h2 {{ margin-top: 2.5rem; }}
+[data-testid="stHeading"] h3 {{ margin-top: 0.25rem; margin-bottom: 0.5rem; }}
+
+/* Metric labels: small, tracked, muted caps -- so the VALUE is the
+   focal point and the label reads as context, not competing text. */
+[data-testid="stMetricLabel"] p {{
+    text-transform: uppercase;
+    letter-spacing: 0.045em;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    color: {INK_MUTED} !important;
+}}
+[data-testid="stMetricValue"] {{ color: {INK}; }}
+
+/* Named cards (st.container(key=...)): consistent gap between sections
+   so the page reads as distinct cards, not a touching stack. */
+.st-key-snapshot-card, .st-key-policy-card, .st-key-changed-card,
+.st-key-outcome-card, .st-key-costs-card, .st-key-econ-expander {{
+    margin-bottom: 1.85rem;
+}}
+
+/* Honesty banners restyled as intentional callouts, not default
+   error/warning chrome -- one accent bar, no icon (hard rule: no alert
+   icons), kept full padding and weight, never shrunk. Streamlit paints
+   the kind-specific colour wash on TWO nested divs -- stAlertContainer
+   (a semi-transparent tint) and stAlertContent{{Kind}} inside it -- so
+   both need neutralising or the tint bleeds through at the edges. */
+div[data-testid="stAlert"] {{
+    border: 1px solid {BORDER} !important;
+    border-left: 4px solid {ACCENT} !important;
+    border-radius: 0.5rem !important;
+    box-shadow: 0 1px 3px rgba(28, 31, 36, 0.06);
+    overflow: hidden;
+}}
+div[data-testid="stAlertContainer"] {{ background: {CARD} !important; }}
+div[data-testid^="stAlertContent"] {{
+    background: {CARD} !important;
+    padding: 1.15rem 1.4rem !important;
+}}
+div[data-testid^="stAlertContent"] p {{ color: {INK} !important; }}
+div[data-testid^="stAlertContent"] strong {{ color: {INK}; }}
+[data-testid="stAlertDynamicIcon"] {{ display: none !important; }}
+
+/* Sidebar: quieter, tighter typography -- controls, not a second
+   column of competing prose. */
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p {{
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: {INK_MUTED};
+}}
+[data-testid="stSidebar"] [data-testid="stHeading"] h2 {{
+    margin-top: 1.75rem;
+    font-size: 1.05rem !important;
+}}
+</style>
+"""
 
 
 def humanize(col: str) -> str:
@@ -122,13 +207,36 @@ def default_merchant_and_week(acceleration: pd.DataFrame) -> tuple[str, pd.Times
     return chosen["seller_id"], chosen["model_alarm_week"]
 
 
+def sparkline(trail: pd.DataFrame, threshold: float) -> alt.LayerChart:
+    """Compact trend line beside the hazard metric -- no axis chrome, a
+    thin threshold rule, sized to sit next to a number rather than as a
+    standalone chart."""
+    spark_df = trail[["week", "calibrated_hazard"]].rename(columns={"calibrated_hazard": "hazard"})
+    line = (
+        alt.Chart(spark_df)
+        .mark_line(point=alt.OverlayMarkDef(size=25, filled=True), color=ACCENT, strokeWidth=2.25)
+        .encode(
+            x=alt.X("week:T", title=None, axis=None),
+            y=alt.Y("hazard:Q", title=None, axis=None),
+            tooltip=[alt.Tooltip("week:T", title="Week"), alt.Tooltip("hazard:Q", title="Hazard", format=".2%")],
+        )
+    )
+    rule = (
+        alt.Chart(pd.DataFrame({"threshold": [threshold]}))
+        .mark_rule(strokeDash=[3, 3], color=INK_MUTED, strokeWidth=1)
+        .encode(y="threshold:Q")
+    )
+    return (line + rule).properties(height=64)
+
+
 def main() -> None:
     st.set_page_config(page_title="Reserve decision engine (demo)", layout="wide")
+    st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
     predictions, gmv, acceleration, sweep, precision_recall, costs = load_data()
     contrib_cols = [c for c in predictions.columns if c.startswith("contrib__")]
 
-    st.title("Reserve decision engine — demo")
+    st.title("Reserve decision engine")
     st.caption(
         "A demonstration of an evaluated research result on the Olist Brazilian marketplace "
         "test set (2018), not a production system. Every number on this page is read from a "
@@ -137,7 +245,7 @@ def main() -> None:
     )
 
     # ---- required honesty banner #1, always visible, not collapsible ----
-    st.subheader("Read this first")
+    st.header("Read this first")
     st.warning(
         "**What this model actually does:** it does not predict distress weeks in advance "
         "(checked directly — DECISIONS.md D13/D14 — discrimination is 0.53–0.59 AUC, near "
@@ -187,7 +295,7 @@ def main() -> None:
     accel_at_far = acceleration[acceleration["far"] == far]
     n_events = len(accel_at_far)
 
-    st.subheader(f"Outcomes at {far_label(far)} FAR")
+    st.header(f"Outcomes at {far_label(far)} FAR")
     if n_events == 0:
         # Defensive: with the selector restricted above this shouldn't be
         # reachable, but the artefact and the selector are two separate
@@ -259,55 +367,41 @@ def main() -> None:
     wc_rate = costs["working_capital_cost_weekly_rate"]
     benefit_capture = costs["benefit_capture_rate"]
 
-    # ---- merchant snapshot ----
-    st.divider()
+    # ---- merchant snapshot: the focal point of the page ----
     st.header("Merchant snapshot")
-    with st.container(border=True):
-        col_a, col_b, col_c = st.columns(3, border=True)
+    with st.container(border=True, key="snapshot-card"):
+        hazard_col, spark_col, flag_col, gmv_col = st.columns([1.15, 1.5, 0.85, 1.05])
 
         hazard_this_week = float(row["calibrated_hazard"])
         hazard_last_week = float(prev_row["calibrated_hazard"]) if prev_row is not None else None
         # The delta is a difference of two percentages, i.e. percentage
         # points, not itself a percentage -- ".2%" formatting on the raw
         # difference understated it by ~100x. "pp" makes the unit explicit.
-        col_a.metric(
-            "Calibrated hazard estimate, this week",
-            f"{hazard_this_week:.2%}",
-            delta=(
-                f"{(hazard_this_week - hazard_last_week) * 100:+.2f} pp vs. last week"
-                if hazard_last_week is not None
-                else None
-            ),
-            delta_color="off",  # a hazard estimate has no "danger direction" -- see banners
-        )
-        flagged = hazard_this_week >= threshold
-        col_b.metric("Flagged at this FAR?", "Yes" if flagged else "No")
-        col_c.metric("Merchant's own avg. weekly GMV", reais(weekly_gmv, 0))
+        with hazard_col:
+            st.metric(
+                "Calibrated hazard, this week",
+                f"{hazard_this_week:.2%}",
+                delta=(
+                    f"{(hazard_this_week - hazard_last_week) * 100:+.2f} pp vs. last week"
+                    if hazard_last_week is not None
+                    else None
+                ),
+                delta_color="off",  # a hazard estimate has no "danger direction" -- see banners
+            )
 
         trail = merchant_rows[merchant_rows["week"] <= row["week"]].tail(12)
-        spark_df = trail[["week", "calibrated_hazard"]].rename(columns={"calibrated_hazard": "hazard"})
-        line = (
-            alt.Chart(spark_df)
-            .mark_line(point=True, color="#4C72B0")
-            .encode(
-                x=alt.X("week:T", title=None, axis=alt.Axis(format="%b %d", grid=False)),
-                y=alt.Y("hazard:Q", title=None, axis=alt.Axis(format="%", grid=False)),
-                tooltip=[alt.Tooltip("week:T", title="Week"), alt.Tooltip("hazard:Q", title="Hazard", format=".2%")],
-            )
-        )
-        rule = (
-            alt.Chart(pd.DataFrame({"threshold": [threshold]}))
-            .mark_rule(strokeDash=[4, 4], color="#888888")
-            .encode(y="threshold:Q")
-        )
-        st.altair_chart((line + rule).properties(height=140), width="stretch")
-        st.caption(
-            f"Calibrated hazard, last {len(trail)} available week(s) in the test window. Dashed "
-            f"line: this FAR's flag threshold ({threshold:.4f})."
-        )
+        with spark_col:
+            st.altair_chart(sparkline(trail, threshold), width="stretch")
+            st.caption(f"Last {len(trail)} week(s) · dashed line = flag threshold")
+
+        flagged = hazard_this_week >= threshold
+        with flag_col:
+            st.metric("Flagged?", "Yes" if flagged else "No")
+        with gmv_col:
+            st.metric("Avg. weekly GMV", reais(weekly_gmv, 0))
 
     # ---- simulated policy action ----
-    with st.container(border=True):
+    with st.container(border=True, key="policy-card"):
         st.subheader("Simulated policy action")
         st.caption(
             "The model determines only the flag (hazard ≥ threshold, above). The reserve "
@@ -328,74 +422,81 @@ def main() -> None:
         )
 
     # ---- what changed since last week ----
-    st.subheader("What changed since last week")
-    if prev_row is None:
-        st.write("No prior week in the test window for this merchant.")
-    else:
-        deltas = pd.DataFrame(
-            {
-                "feature": [humanize(c) for c in contrib_cols],
-                "delta": [row[c] - prev_row[c] for c in contrib_cols],
-            }
-        )
-        deltas["abs"] = deltas["delta"].abs()
-        top_movers = deltas.sort_values("abs", ascending=False).head(5).drop(columns="abs").reset_index(drop=True)
-        top_movers["direction"] = top_movers["delta"].apply(
-            lambda v: "raises hazard" if v > 0 else "lowers hazard"
-        )
-        chart = (
-            alt.Chart(top_movers)
-            .mark_bar()
-            .encode(
-                x=alt.X("delta:Q", title="Δ contribution to log-odds score"),
-                y=alt.Y("feature:N", sort=top_movers["feature"].tolist(), title=None),
-                color=alt.Color(
-                    "direction:N",
-                    scale=alt.Scale(domain=["raises hazard", "lowers hazard"], range=["#DD8452", "#4C72B0"]),
-                    legend=alt.Legend(title=None, orient="bottom"),
-                ),
-                tooltip=[
-                    alt.Tooltip("feature:N", title="Feature"),
-                    alt.Tooltip("delta:Q", title="Δ contribution", format="+.4f"),
-                ],
+    with st.container(border=True, key="changed-card"):
+        st.subheader("What changed since last week")
+        if prev_row is None:
+            st.write("No prior week in the test window for this merchant.")
+        else:
+            deltas = pd.DataFrame(
+                {
+                    "feature": [humanize(c) for c in contrib_cols],
+                    "delta": [row[c] - prev_row[c] for c in contrib_cols],
+                }
             )
-            .properties(height=32 * len(top_movers))
-        )
-        st.altair_chart(chart, width="stretch")
-        st.caption(
-            "Exact decomposition for this linear model: each feature's contribution is its "
-            "coefficient × standardised value; the deltas above sum to the change in the "
-            "underlying log-odds score, not an approximation."
-        )
+            deltas["abs"] = deltas["delta"].abs()
+            top_movers = (
+                deltas.sort_values("abs", ascending=False).head(5).drop(columns="abs").reset_index(drop=True)
+            )
+            top_movers["direction"] = top_movers["delta"].apply(
+                lambda v: "raises hazard" if v > 0 else "lowers hazard"
+            )
+            zero_rule = alt.Chart(pd.DataFrame({"x": [0]})).mark_rule(color=BORDER, strokeWidth=1).encode(x="x:Q")
+            bars = (
+                alt.Chart(top_movers)
+                .mark_bar(size=22)
+                .encode(
+                    x=alt.X("delta:Q", title="Δ contribution to log-odds score", axis=alt.Axis(grid=False)),
+                    y=alt.Y("feature:N", sort=top_movers["feature"].tolist(), title=None),
+                    color=alt.Color(
+                        "direction:N",
+                        scale=alt.Scale(domain=["raises hazard", "lowers hazard"], range=[ACCENT_WARM, ACCENT]),
+                        legend=alt.Legend(title=None, orient="bottom"),
+                    ),
+                    tooltip=[
+                        alt.Tooltip("feature:N", title="Feature"),
+                        alt.Tooltip("delta:Q", title="Δ contribution", format="+.4f"),
+                    ],
+                )
+                .properties(height=36 * len(top_movers))
+            )
+            st.altair_chart(zero_rule + bars, width="stretch")
+            st.caption(
+                "Exact decomposition for this linear model: each feature's contribution is its "
+                "coefficient × standardised value; the deltas above sum to the change in the "
+                "underlying log-odds score, not an approximation. Sorted by magnitude; colour is "
+                "the one signed quantity on this page, so it's the one place colour is used for "
+                "meaning rather than decoration."
+            )
 
     # ---- known outcome ----
     if is_event:
-        st.subheader("Known outcome in the test set (not a live prediction)")
-        outcome_row = accel_at_far[accel_at_far["seller_id"] == seller_id]
-        if len(outcome_row):
-            o = outcome_row.iloc[0]
-            status_text = {
-                "beats_rule": f"the model flagged this merchant **{o['acceleration_weeks']:.0f} weeks before** "
-                f"the N=8 rule would have confirmed it (rule confirmation: {o['event_week'].date()}, "
-                f"model alarm: {o['model_alarm_week'].date()}).",
-                "ties_rule": f"the model flagged this merchant the **same week** the N=8 rule confirmed it "
-                f"({o['event_week'].date()}).",
-                "never_flagged": f"the model **never flagged** this merchant before the N=8 rule confirmed "
-                f"it on {o['event_week'].date()} — the same outcome the naive rule alone would give.",
-            }[o["status"]]
-            st.write(f"This merchant went on to a confirmed cessation. At {far_label(far)} FAR, {status_text}")
+        with st.container(border=True, key="outcome-card"):
+            st.subheader("Known outcome in the test set (not a live prediction)")
+            outcome_row = accel_at_far[accel_at_far["seller_id"] == seller_id]
+            if len(outcome_row):
+                o = outcome_row.iloc[0]
+                status_text = {
+                    "beats_rule": f"the model flagged this merchant **{o['acceleration_weeks']:.0f} weeks before** "
+                    f"the N=8 rule would have confirmed it (rule confirmation: {o['event_week'].date()}, "
+                    f"model alarm: {o['model_alarm_week'].date()}).",
+                    "ties_rule": f"the model flagged this merchant the **same week** the N=8 rule confirmed it "
+                    f"({o['event_week'].date()}).",
+                    "never_flagged": f"the model **never flagged** this merchant before the N=8 rule confirmed "
+                    f"it on {o['event_week'].date()} — the same outcome the naive rule alone would give.",
+                }[o["status"]]
+                st.write(f"This merchant went on to a confirmed cessation. At {far_label(far)} FAR, {status_text}")
 
     # ---- cost trade-off ----
-    with st.container(border=True):
+    with st.container(border=True, key="costs-card"):
         st.subheader("Estimated cost trade-off at this reserve level")
         weekly_wc_cost = weekly_gmv * reserve_pct * wc_rate
         two_week_benefit = 2 * weekly_gmv * reserve_pct * benefit_capture
-        col_x, col_y = st.columns(2, border=True)
+        col_x, col_y = st.columns(2)
         with col_x:
-            st.metric("If this is a false alarm (stays healthy)", f"{reais(weekly_wc_cost)} / week held")
+            st.metric("If false alarm (stays healthy)", f"{reais(weekly_wc_cost)} / week held")
             st.caption("Working-capital cost charged to a healthy merchant while flagged (config/costs.yaml).")
         with col_y:
-            st.metric("If it fails and is caught ~2 weeks early", reais(two_week_benefit))
+            st.metric("If caught ~2 weeks early", reais(two_week_benefit))
             st.caption(
                 "Illustrative, not a prediction for this merchant specifically — 2 weeks is the "
                 "population median acceleration when the model does beat the rule (a minority of "
@@ -422,7 +523,7 @@ def main() -> None:
             )
 
     # ---- required honesty banner #2, always visible, not collapsible ----
-    st.divider()
+    st.header("Read this too")
     st.warning(
         "**Calibration caveat:** the highest-risk decile of predictions in back-testing is "
         "over-confident by roughly 2x (mean predicted 8.0% vs. mean actual 3.9%; DECISIONS.md "

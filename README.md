@@ -639,7 +639,13 @@ rather than Olist's e-commerce proxy:
 evaluated — select a test-set merchant, see its calibrated hazard, what
 changed since last week and which features moved it, the simulated
 policy action at a chosen row-level false-alarm rate, and the estimated
-cost trade-off. The sidebar states both the row-level FAR and its
+cost trade-off. Visual design pass in `DECISIONS.md` D32 — one
+considered theme (`.streamlit/config.toml`), real typographic
+hierarchy, and cards, all built to one hard rule: no gauges, no 0-100
+risk scores, no red/amber/green threat levels, no alert icons, nothing
+implying more confidence or precision than the evidence supports. No
+number or piece of logic on the page changed, only how it's presented.
+The sidebar states both the row-level FAR and its
 equivalent seller-level rate side by side (not just the row-level
 number — see Section 3's footnote), plus that operating point's
 precision/recall, so the same distinction this document draws in prose

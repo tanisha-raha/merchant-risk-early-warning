@@ -7,7 +7,8 @@ BRIEF.md
 .claude/
 .pytest_cache/
 .ruff_cache/
-.streamlit/
+.streamlit/*
+!.streamlit/config.toml
 
 # Demo data (src/prepare_demo_data.py output) -- regenerable bulk data for
 # app.py, not reported findings; see README "Interactive demo". The

@@ -1640,3 +1640,106 @@ D31's matched-FAR table is a re-sort of D30's own committed CSV, not a
 new computation, so nothing to re-verify beyond the arithmetic (checked
 by hand against the CSV, not just trusted).
 
+### D32 — Demo visual design pass: a considered theme, real hierarchy, cards, no change to what's shown
+
+**Instruction: the earlier plainness constraint was too restrictive —
+the result read as unfinished, not deliberately plain. Loosen it.**
+Redesign `app.py` to look like a designed research tool rather than a
+default Streamlit page, within one hard rule carried over unchanged: no
+gauges, no 0-100 risk scores, no red/amber/green threat levels, no alert
+icons, nothing implying more confidence or precision than 0.68 AUC and a
+minority-benefit result support. No content, number, or piece of
+evaluated logic changed in this entry — every figure on the page is
+identical to before; only how it's presented changed.
+
+**`.streamlit/config.toml`, new file.** One theme, applied natively
+through Streamlit's own theme config rather than fought with CSS
+overrides: `primaryColor` (`#2F6F8F`, a muted slate-teal — the one
+accent used throughout), a warm off-white `backgroundColor`
+(`#F7F6F2`) against a white `secondaryBackgroundColor`, near-black
+`textColor`, a muted `grayTextColor` for captions, `headingFontSizes`/
+`headingFontWeights` tuned for a tool (h1 2rem, not the 2.75rem
+marketing-page default) rather than left at Streamlit's defaults, and
+`metricValueFontSize`/`metricValueFontWeight` bumped so `st.metric`
+values read as the page's focal point without any custom CSS needed for
+that specific ask. `showWidgetBorder`/`showSidebarBorder` enabled so
+sidebar controls read as considered inputs, not borderless defaults.
+Checked the installed Streamlit version (1.58) actually supports this
+extended theme schema before writing it, by reading `streamlit/config.py`
+directly rather than assuming from older documentation.
+
+**One CSS block, injected once at the top of `main()` via
+`st.markdown(..., unsafe_allow_html=True)`, per instruction ("in one
+block ... rather than scattered").** Handles what theme config can't:
+section-heading margins (generous whitespace instead of more divider
+lines — one `st.divider()` removed, not added), metric-label
+typography (small tracked uppercase caps, so the value carries the
+visual weight), spacing between named cards, sidebar caption sizing,
+and the honesty-banner restyle below. Colours referenced in the CSS are
+the same Python constants (`ACCENT`, `ACCENT_WARM`, `INK`, `INK_MUTED`,
+`CARD`, `BORDER`) used in the Altair chart specs, defined once, so the
+page chrome and the charts can't drift out of the same palette.
+
+**Honesty banners: restyled, not shrunk, not hidden — the harder part
+was finding the right DOM node.** `st.warning`/`st.info` content and
+placement are untouched; only appearance changed. First attempt
+targeted `[data-testid="stAlert"]`'s background directly and did
+nothing visible — checked why rather than assumed it worked: rendered
+the app, opened the actual DOM (via a headless Chromium screenshot, see
+Verification below) and found Streamlit paints the kind-specific colour
+wash on two *inner* nodes, `stAlertContainer` (a semi-transparent tint)
+and `stAlertContent{{Warning,Info,...}}` (the visible fill), neither of
+which is the outer `stAlert` div a first guess would target. Fixed by
+overriding both inner nodes' backgrounds to solid white and moving the
+accent — one 4px left border in `ACCENT`, no colour-coding by kind — to
+the outer box. `[data-testid="stAlertDynamicIcon"] { display: none }`
+added for the hard rule against alert icons, though checked and this
+Streamlit version doesn't render one by default for `st.warning`/
+`st.info` without an explicit `icon=` argument — the rule is defensive,
+not fixing an icon that was actually showing.
+
+**Layout changes, per instruction:**
+- Merchant snapshot: the hazard metric, a compact sparkline (axis-free,
+  sized to sit beside a number rather than stand alone — `sparkline()`,
+  new function), "Flagged?", and "Avg. weekly GMV" are one row inside a
+  single bordered card, the sparkline given more column width than the
+  two smaller metrics so the three metrics plus trend read as one focal
+  unit, not four equal-weight blocks.
+- "What changed since last week": the existing horizontal signed bar
+  chart gained a `mark_rule` at zero (a diverging chart needs a visible
+  baseline) and switched from the old ad hoc `#DD8452`/`#4C72B0` to the
+  same `ACCENT_WARM`/`ACCENT` used everywhere else on the page — same
+  chart, page-consistent colours.
+- Every interactive section — snapshot, simulated policy action, what
+  changed, known outcome, cost trade-off — is now a named bordered
+  container (`st.container(border=True, key=...)`), so the page reads
+  as five distinct cards rather than a scroll of same-weight blocks.
+  Inner columns (the two cost-trade-off metrics, the snapshot's four
+  slots) are NOT separately bordered — nesting boxes inside boxes was
+  tried and reads as clutter, not hierarchy; one border per section is
+  enough.
+- Section headings promoted to `st.header` (h2) for the page's major
+  divisions (the two honesty sections, "Outcomes at X FAR", "Merchant
+  snapshot") with card titles at `st.subheader` (h3) one level below —
+  a real three-level hierarchy (title / major section / card), not four
+  same-sized headings competing for attention.
+
+**Verification, two methods, because AppTest alone can't check CSS
+rendered:**
+1. `streamlit.testing.v1.AppTest`, same script and same coverage as
+   D28's method — all three FAR options, an explicit event and
+   non-event merchant, both week-selector endpoints. No exceptions.
+2. **New for this entry: rendered the app for real** (`streamlit run
+   app.py --server.headless true`) and captured full-page screenshots
+   with a headless Chromium via Playwright (installed locally for this
+   check only — not added to `requirements.txt`, the demo itself never
+   imports it). This is how the alert-banner bug above was actually
+   found: AppTest confirmed the page didn't crash, but only a rendered
+   screenshot showed the banners still carrying their old yellow/blue
+   background wash after the first CSS attempt. Re-screenshotted after
+   the fix and confirmed solid white banners with the single accent
+   border, no icons, correct card spacing, and the sparkline sitting
+   beside the hazard metric as intended, before calling this done.
+
+Ruff clean. No `src/` or `tests/` files touched; `pytest` unaffected.
+
