@@ -650,36 +650,47 @@ rather than Olist's e-commerce proxy:
 ## Interactive demo
 
 `app.py` is a Streamlit demonstration of the decision this project
-evaluated — select a test-set merchant from a compact top toolbar (no
-permanent sidebar, `DECISIONS.md` D36), see its full hazard trajectory
-over the test window with the flag threshold, the model's first alarm,
-and (for confirmed cessations) the N=8 rule's confirmation date marked
-directly on the chart, what changed since last week and which features
-moved it, the simulated policy action, and the estimated cost trade-off.
-Built to one hard rule throughout: no gauges, no 0-100 risk scores, no
-red/amber/green threat levels, no alert icons, no categorical risk
-labels ("HIGH RISK" etc.) — status pills state "Flagged"/"Not flagged"
-in one neutral style regardless of value, not a colour-coded severity
-system (`DECISIONS.md` D32, D36). No number or piece of logic on the
-page has changed across any of its visual design passes, only how it's
-presented. The toolbar states the row-level FAR as target and achieved
-together ("5% → 5.9%," reading the achieved figure from the same
-artefact this document's Section 4 table reads — an earlier version
-showed only the nominal target, contradicting Section 4's own
-methodology, fixed in `DECISIONS.md` D34) plus the equivalent
-seller-level rate (Section 3's footnote) and that operating point's
-precision/recall, as a compact labelled stat row rather than prose
-(`DECISIONS.md` D33, D36). It is a presentation of the results already
-reported above, not a new analysis and not a production system.
+evaluated. A left navigation rail (Merchant review / Method &
+limitations / About this project — page destinations only, not a
+control panel; no logo, no invented product branding, `DECISIONS.md`
+D37) sits beside a compact top toolbar (FAR / merchant / week — no
+permanent sidebar of controls, `DECISIONS.md` D36). Merchant review
+shows five per-merchant metrics (calibrated hazard, flag status,
+current threshold, average weekly GMV, seller FAR), a hazard trajectory
+over a selectable 6/12/24-week or full window with the flag threshold,
+the selected week, the model's first alarm, and — when it falls inside
+the displayed window — the N=8 rule's confirmation date, all marked
+directly on the chart (outside the window, the date is stated in text
+rather than stretching the axis for it, `DECISIONS.md` D37), what
+changed since last week, the simulated policy action, cost trade-off,
+an operating-point summary strip, and an "about this merchant" panel
+built only from fields already present in the demo's artefacts — no
+order-level dates are shown, since none exist in them, rather than
+inferring one (D37). Built to one hard rule throughout: no gauges, no
+0-100 risk scores, no red/amber/green threat levels, no alert icons, no
+categorical risk labels ("HIGH RISK" etc.) — flag status states
+"Flagged"/"Not flagged" in one accent colour, on or off, never a
+severity gradient (`DECISIONS.md` D32, D36, D37). No number or piece of
+logic on the page has changed across any of its visual design passes,
+only how it's presented. The operating-point summary states the
+row-level FAR as target and achieved separately ("5% target, 5.9%
+achieved," reading the achieved figure from the same artefact this
+document's Section 4 table reads — an earlier version showed only the
+nominal target, contradicting Section 4's own methodology, fixed in
+`DECISIONS.md` D34) plus the equivalent seller-level rate (Section 3's
+footnote), flagged rows, true events, and precision/recall
+(`DECISIONS.md` D33, D35, D37). It is a presentation of the results
+already reported above, not a new analysis and not a production system.
 
-**Structure (`DECISIONS.md` D33): the merchant view is the primary
-content, one short banner states the single most important honesty
-check, and the full disclosures are one tab over, not stacked above
-everything else.** A short top banner — the model detects a seller
-already gone quiet, faster than the naive rule, it does not predict
-distress weeks in advance — is always visible and points to a "Method &
-limitations" tab. That tab holds, unabridged, the same three checks this
-demo has always required: the full "what this model actually does"
+**Structure (`DECISIONS.md` D33, restructured again in D37): the
+merchant view is the primary content, one short banner states the
+single most important honesty check, and the full disclosures are one
+click away in the left nav, not stacked above everything else.** A
+short top banner — the model detects a seller already gone quiet,
+faster than the naive rule, it does not predict distress weeks in
+advance — is always visible on the primary view and points to "Method &
+limitations." That destination holds, unabridged, the same three checks
+this demo has always required: the full "what this model actually does"
 statement, the dynamic outcomes breakdown at whichever FAR is selected
 (the minority-benefit acceleration result, Sections 3/4), and the
 top-decile calibration caveat (Section 5) — nothing removed, nothing

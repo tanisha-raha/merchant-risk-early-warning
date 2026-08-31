@@ -2136,3 +2136,148 @@ reached by switching to a non-event merchant and an early week) —
 confirmed pixel-identical pill styling between the two states.
 `pytest` unaffected (no `src/`/`tests/` files touched).
 
+### D37 — Second layout pass to a specific reference, with three explicit exclusions and a data-availability check
+
+A reference screenshot (a dark-nav-rail research-console mockup) was
+given as the structural/density target, with named deviations. This
+entry implements the structure closely while holding every prior hard
+rule and the three new exclusions given with this instruction. No
+number, threshold, or piece of evaluated logic changed anywhere in this
+entry — same artefacts as D34-D36, only presentation.
+
+**The three exclusions, resolved before writing any code:**
+1. **No app branding.** The reference's logo mark and "Merchant Risk /
+   Research Console" label are not implemented. Page header stays
+   "Reserve decision engine — demo" with "Historical research replay
+   (not a live predictor)" directly beneath — and this entry actually
+   *restores* something D36 had silently dropped: the on-page
+   `st.title` had lost its "— demo" suffix in an earlier revision
+   (caught in D36, fixed there; re-verified here it's still correct).
+2. **Left navigation restricted to exactly three items** — Merchant
+   review, Method & limitations, About this project. The reference's
+   Portfolio overview / Evaluation results / Economic analysis / Data &
+   features destinations are not built; those views don't exist in this
+   project and weren't asked for. "About this project" is new (below).
+3. **Flag status stays strictly "Flagged"/"Not flagged," one accent
+   colour, never a severity gradient.** The reference uses an orange
+   flag icon/text for the active state and red/green-tinted cost cards.
+   Implemented: the flag pill/card uses `ACCENT_WARM` for "Flagged" and
+   plain ink for "Not flagged" — one colour, on or off, the same
+   distinction already established for the feature-contribution chart's
+   signed direction (D32), not a new kind of exception. The cost
+   trade-off cards were **not** given red/green tinting to match the
+   reference — that specific instruction sentence ("any flag colour is
+   a status accent only") scopes the colour allowance to the flag
+   status specifically, and red/green on a cost-vs-benefit pair is
+   exactly the kind of thing the hard rule carried since D32 rules out.
+   Checked by screenshotting both flag states side by side and
+   confirming the "Flagged"/"Not flagged" pill styling differs only in
+   text and that one accent colour, never severity.
+
+**Left nav replaces the tab structure, not the toolbar.** D36's
+`st.tabs(["Merchant view", "Method & limitations"])` became a narrow
+left-rail navigation (`st.button` per destination, tracked via
+`st.session_state["nav"]`) — this is page navigation only. The FAR/
+merchant/week selectors stay exactly where D36 put them: a compact top
+toolbar, not the nav rail and not a sidebar of controls. A small "About
+this demo" card sits under the nav buttons (matching the reference's
+own layout), stating the historical-replay claim in two sentences and
+linking to Method & limitations — additive, not a substitute for the
+full-length top banner, which stayed on the primary view unchanged.
+
+**Bug found and fixed: nav highlighting lagged one click behind the
+content it was supposed to match.** First implementation checked
+`if st.button(item, type=(...)): st.session_state["nav"] = item` --
+each button's own `type=` argument is evaluated (to decide primary vs.
+secondary styling) *before* that same click is detected and state is
+updated, so on the render where a click just landed, every button's
+highlight still reflects the *previous* nav state, even though the
+content below (which reads `st.session_state["nav"]` later in the
+script) already switched. Caught by screenshot, not by reasoning about
+the code alone: clicking "Method & limitations" visibly rendered the
+Method content while leaving "Merchant review" highlighted. Fixed by
+moving state updates into `on_click` callbacks (`_set_nav`), which
+Streamlit runs *before* the script body re-executes -- re-screenshotted
+all three destinations after the fix and confirmed each highlights
+correctly and immediately.
+
+**Five primary metric cards, replacing D36's operating-point row in
+this position:** calibrated hazard (this week), flag status, current
+flag threshold, average weekly GMV, seller FAR — exactly the five
+named. Target FAR, achieved FAR, precision, and recall moved to the
+"Operating point summary" strip further down (still all present,
+nothing dropped — see below); this row is deliberately merchant-
+specific, not population-level, matching the reference's own split
+between the top row and the summary strip.
+
+**Hazard trajectory: a trailing window ending at the selected week, not
+the full history D36 always showed.** This is the mechanism that makes
+"if the confirmation date falls inside the window, mark it; if not,
+don't stretch the axis, state it below" a real, sometimes-false
+condition rather than the always-true one D36's full-history chart
+made it (checked there, in D36's own writeup, and now superseded). Adds
+a `st.segmented_control("6W"/"12W"/"24W"/"All")` and computes the
+window as `merchant_rows[week <= selected_week].tail(n)` — trailing
+*from the selected week*, never a future week relative to it, which
+also means the "current point" marker is always the window's rightmost
+point by construction, and a merchant's future confirmation date (which
+for every event merchant equals their last observed row, D36) is
+structurally excluded from any window ending before that row — this is
+correct, not a bug: showing a not-yet-known future date on a point-in-
+time chart would itself be a look-ahead artefact, and the reference
+image's own chart exhibits the identical behaviour (its visible x-axis
+also ends at the selected week, with the confirmation date stated only
+in the panels below, not drawn).
+
+**Degrades gracefully by construction, checked with a real short-
+history merchant, not assumed from reading `.tail()`'s docs.** Found
+the shortest available test-window history (1 week) and ran the
+20W/24W/All range options against it via `AppTest` — no exception, no
+padding, `.tail(24)` on a 1-row frame simply returns the 1 row that
+exists. This is pandas' own behaviour, not code written for this
+entry, but it was verified rather than trusted.
+
+**"About this merchant" panel — checked what's actually available
+before writing labels, not before.** Inspected
+`figures/demo_test_predictions.csv`'s real columns directly: `category`
+and `tenure_weeks` are present as raw per-row values; no order-level
+date or order count exists anywhere in the committed demo artefacts
+(confirmed by grepping every `figures/*.csv` header, not assumed from
+memory). The reference's exact six-field list ("first order," "last
+order," "total orders," ...) therefore cannot be shown honestly as
+written — two fields are relabelled to what the data actually supports
+("first/last week observed [test window]" rather than "first/last
+order," since a panel-week is not an order date) and "total orders" is
+dropped rather than fabricated, replaced with "tenure at first
+observation" (a genuinely stored value, `tenure_weeks` on the merchant's
+earliest test-window row) and an explicit caption stating why order-
+level fields aren't shown. This is the same "state the gap, don't
+fabricate the number" discipline this project has applied to every
+other artefact throughout (D20's small-sample categories, D29's tie-
+plateau correction, D34's target-vs-achieved FAR fix) — applied here to
+a UI-copy decision instead of an analytical one, but the same rule.
+
+**Operating-point summary strip: seven metrics, all previously
+established, none recomputed.** Target row FAR, achieved row FAR
+(D34), seller FAR, flagged rows, true events, precision, recall — same
+sources as D35's sidebar and D36's stat row, now a horizontal strip
+matching the reference's density. Target and achieved FAR kept as two
+separate metrics with an explanatory caption, per instruction, not
+collapsed into one number.
+
+Verified: `ruff check app.py` clean. Two `AppTest` scripts run: the
+existing D28/D32/D33/D36 smoke-test coverage (all three FAR options,
+event and non-event merchants — no exceptions), and a new script
+covering exactly what this instruction asked for and nothing assumed
+already covered by the first: every FAR option, an explicitly flagged
+merchant, an explicitly non-flagged merchant, a 1-week-history merchant
+against the 24W and All range options, and an event merchant at its
+first available week with the 6W range specifically to force the
+confirmation date outside the displayed window (checked the fallback
+text actually appears, not just that no exception was raised). Rendered
+and screenshotted for real (headless Chromium) at every stage of this
+entry — full page, the outside-window fallback text, all three nav
+destinations before and after the highlighting-lag fix, and both flag
+states — before calling any of it done. `pytest` unaffected (5 passed,
+no `src/`/`tests/` files touched).
+
