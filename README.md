@@ -670,25 +670,35 @@ directly on the chart), and — when it falls inside the displayed window
 the axis for it, `DECISIONS.md` D37), a stacked cost trade-off /
 simulated policy action / historical-outcome column beside the chart
 (the last rendered as a mini-timeline when the merchant was flagged
-before confirmation, plain text when it wasn't, `DECISIONS.md` D38),
-what changed since last week, an operating-point summary strip, and an
-"about this merchant" panel built only from fields already present in
-the demo's artefacts — no order-level dates are shown, since none exist
-in them, rather than inferring one (D37). Built to one hard rule
+before confirmation, plain text when it wasn't, `DECISIONS.md` D38) —
+the two columns of this row are held to the same height by CSS flexbox
+regardless of which outcome branch renders, not a fixed pixel guess,
+since the two branches are genuinely different lengths (`DECISIONS.md`
+D39). Below that, "what changed since last week" sits beside an "about
+this merchant" panel (~65/35 split) built only from fields already
+present in the demo's artefacts — no order-level dates are shown, since
+none exist in them, rather than inferring one (D37). An operating-point
+summary strip is the very last element on the page, deliberately: it's
+population-level test-set evaluation, not about the selected merchant,
+and everything above it is (`DECISIONS.md` D39). Built to one hard rule
 throughout: no gauges, no 0-100 risk scores, no red/amber/green threat
 levels, no alert icons, no categorical risk labels ("HIGH RISK" etc.) —
-flag status states "Flagged"/"Not flagged" in one accent colour, on or
-off, never a severity gradient (`DECISIONS.md` D32, D36-D38). No number
-or piece of logic on the page has changed across any of its visual
-design passes, only how it's presented. The operating-point summary
-states the row-level FAR as target and achieved separately ("5% target,
-5.9% achieved," reading the achieved figure from the same artefact this
-document's Section 4 table reads — an earlier version showed only the
-nominal target, contradicting Section 4's own methodology, fixed in
-`DECISIONS.md` D34) plus the equivalent seller-level rate (Section 3's
-footnote), flagged rows, true events, and precision/recall
-(`DECISIONS.md` D33, D35, D37). It is a presentation of the results
-already reported above, not a new analysis and not a production system.
+exactly two accents, each with one fixed meaning, used everywhere the
+model's signal direction appears: orange for positive/increasing
+signal (flag on, a feature that raises hazard), blue for
+negative/decreasing signal (flag off, a feature that lowers hazard) —
+never a severity gradient, never a third colour (`DECISIONS.md` D32,
+D36-D39). No number or piece of logic on the page has changed across
+any of its visual design passes, only how it's presented. The
+operating-point summary states the row-level FAR as target and achieved
+separately ("5% target, 5.9% achieved," reading the achieved figure
+from the same artefact this document's Section 4 table reads — an
+earlier version showed only the nominal target, contradicting Section
+4's own methodology, fixed in `DECISIONS.md` D34) plus the equivalent
+seller-level rate (Section 3's footnote), flagged rows, true events, and
+precision/recall (`DECISIONS.md` D33, D35, D37). It is a presentation of
+the results already reported above, not a new analysis and not a
+production system.
 
 **Structure (`DECISIONS.md` D33, restructured again in D37): the
 merchant view is the primary content, one short banner states the

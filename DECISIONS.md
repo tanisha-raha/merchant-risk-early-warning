@@ -2407,3 +2407,118 @@ order with correct highlighting, both flag-pill states side by side,
 and a genuine never-flagged event merchant to confirm the plain-text
 outcome branch. `pytest` unaffected (no `src/`/`tests/` files touched).
 
+### D39 — Final UI pass: row-height equalisation, page restructuring, and the colour-semantics rule pinned down and documented
+
+Explicitly framed by the instruction as the last visual pass on
+`app.py`. Six changes, none touching a number or a piece of evaluated
+logic — presentation only, same as D33–D38.
+
+**Colour semantics, pinned down as a hard rule (this is the load-bearing
+change in this entry, everything else is layout).** The app uses
+exactly two accents, and they mean exactly one thing each, everywhere:
+
+- `ACCENT_WARM` (`#B5602E`, orange/rust) = **positive / increasing
+  model signal** — used for "Flagged" (the flag-status pill/dot) and
+  for "raises hazard" bars in the What-changed contribution chart.
+- `ACCENT` (`#2F6F8F`, blue) = **negative / decreasing model signal** —
+  used for "Not flagged" (the flag-status pill/dot, changed in this
+  entry from a neutral `INK`/`PAPER` treatment) and for "lowers hazard"
+  bars in the same chart.
+
+No green, no red, no severity gradient anywhere in the app — this was
+already the D32/D37 hard rule for flag status specifically; this entry
+extends it to a single, explicit binary that covers every place the
+model's signal direction is shown, and makes "Not flagged" use the same
+signal-direction language as "lowers hazard" instead of a third,
+unrelated neutral colour. Checked by grepping every hex/rgba literal in
+`CUSTOM_CSS` against `{ACCENT, ACCENT_WARM, INK, INK_MUTED, PAPER,
+CARD, BORDER}` — nothing outside that set exists. Structural/reference
+chart marks (threshold line, selected-week point, confirmation-date
+tick) stay `INK`/`INK_MUTED` — deliberately excluded from the binary
+since they mark a position on the chart, not a signal direction; folding
+them into orange/blue would make "which colour means what" ambiguous
+exactly where precision matters.
+
+**Row-height gap between the hazard chart and the cost/policy/outcome
+stack fixed with CSS flexbox, not a hand-tuned pixel constant.** The
+first attempt was to just grow the Altair chart's `height=` — rejected
+after measuring: the info column's actual height depends on which
+outcome-card branch renders (a two-endpoint mini-timeline vs. one line
+of "never flagged" text), which varies by merchant, so any fixed chart
+height that matches one merchant overshoots or undershoots another. The
+actual fix: the row is wrapped in `st.container(key="row-hazard-info")`;
+`[data-testid="stHorizontalBlock"] { align-items: stretch }` inside it
+stretches both `stColumn`s to the row's natural (taller) height, and the
+chart card itself (`.st-key-chart-card`) is set to `height: 100%;
+display: flex; flex-direction: column` so it's the chart CARD's own
+white background/border that grows to fill the leftover space, not
+invisible page background next to it — the latter was tried first and
+rejected because it reproduced the exact complaint (a visible gap
+before the next section) just with the empty space relocated into an
+untracked flex spacer instead of the card. flex-grow has to land on the
+actual direct-child flex item (Streamlit's own `stLayoutWrapper` div),
+not on a nested markup div three levels down — confirmed via
+`getComputedStyle` in the browser before trusting the screenshot, since
+a flex rule that's silently inert on the wrong element looks identical
+to "not gapped yet" until you check computed height. Re-verified on two
+merchants with very different info-column lengths (a mini-timeline
+event merchant, and a censored merchant with a one-line outcome) —
+both columns end within a few pixels of each other in both cases,
+confirming this tracks content rather than one merchant's numbers.
+
+**Left-rail "About this demo" card removed entirely**, not shortened —
+its two-line claim ("historical replay… not future risk") was already
+fully redundant with the top banner one scroll away; cutting it to one
+line would have kept a redundant card, removing it keeps the nav rail
+to exactly its own job (page navigation).
+
+**Row restructured: "What changed since last week" (~65%) beside "About
+this merchant" (~35%).** `st.columns([65, 35])`. "Simulated policy
+action" was NOT duplicated into this row — it already lives in the row
+above, in the info-column stack next to the merchant's current
+hazard/flag state, which is where it reads best next to the state it
+describes.
+
+**"Operating point summary" moved to the very bottom of the page** —
+literally the last element rendered, after the "Population-level
+economics" expander (also population-level, kept adjacent to it rather
+than interleaved with per-merchant content). Every section above it is
+about the one selected merchant; this strip is test-set-wide evaluation
+and doesn't belong mixed into that reading order.
+
+**"About this merchant" fixes.** `st.metric` value font-size scoped
+down to `1.1rem` inside `.st-key-about-card` (Streamlit's default metric
+scale was competing visually with the hero hazard number above it), and
+given `white-space: normal; overflow: visible` so a long value wraps
+instead of clipping — checked against `category="fashion_shoes"`
+specifically (the longest category string in the demo data) via both a
+headless-Chromium screenshot and the `AppTest` metrics list, confirmed
+rendering in full both times. A second, unrelated truncation was found
+during the same screenshot pass and fixed even though it wasn't named
+in the instruction: `st.metric`'s *label* (not just its value) clips
+with an ellipsis by default, and "Weeks since last observed" was
+clipping in the narrower 35%-width column this entry moves the card
+into — `[data-testid="stMetricLabel"] p { white-space: normal; overflow:
+visible }` scoped to the same card lets it wrap instead. "Tenure at
+first observation" renamed to "Merchant tenure" with a `help=` tooltip
+giving the exact definition (weeks since first observed order-week, as
+of the first row of the merchant's test-window history — i.e.
+`tenure_weeks`, not recomputed at the selected week); this is the same
+field `humanize()` already labels "Merchant tenure" in the What-changed
+contribution chart, so the two now agree on what to call it.
+
+Verified: `ruff check app.py` clean. Both existing `AppTest` scripts
+re-run in full after every substantive edit in this entry, not just at
+the end — the smoke-test coverage (every FAR option, event and
+non-event merchants) and D37's scenario script (flagged/non-flagged,
+short-history-vs-range, outside-window confirmation) — no exceptions in
+either. Rendered and screenshotted for real (headless Chromium,
+scrolled top to bottom in full): the primary view confirming the
+row-height fix on two merchants with different info-column lengths, the
+About-merchant card confirming `fashion_shoes` renders unclipped and
+the relabelled/tooltipped tenure field, the full page bottom confirming
+"Operating point summary" is the literal last element, and the
+`.status-pill.off`/`.status-dot.off` computed styles confirmed blue
+(`#2F6F8F`) via `getComputedStyle`, not just read from the source.
+`pytest` unaffected (no `src/`/`tests/` files touched).
+
