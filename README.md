@@ -649,32 +649,40 @@ rather than Olist's e-commerce proxy:
 
 ## Interactive demo
 
-`app.py` is a Streamlit demonstration of the decision this project
-evaluated. A left navigation rail (Merchant review / Method &
-limitations / About this project — page destinations only, not a
-control panel; no logo, no invented product branding, `DECISIONS.md`
-D37) sits beside a compact top toolbar (FAR / merchant / week — no
-permanent sidebar of controls, `DECISIONS.md` D36). Merchant review
-shows five per-merchant metrics (calibrated hazard, flag status,
-current threshold, average weekly GMV, seller FAR), a hazard trajectory
-over a selectable 6/12/24-week or full window with the flag threshold,
-the selected week, the model's first alarm, and — when it falls inside
-the displayed window — the N=8 rule's confirmation date, all marked
-directly on the chart (outside the window, the date is stated in text
-rather than stretching the axis for it, `DECISIONS.md` D37), what
-changed since last week, the simulated policy action, cost trade-off,
-an operating-point summary strip, and an "about this merchant" panel
-built only from fields already present in the demo's artefacts — no
-order-level dates are shown, since none exist in them, rather than
-inferring one (D37). Built to one hard rule throughout: no gauges, no
-0-100 risk scores, no red/amber/green threat levels, no alert icons, no
-categorical risk labels ("HIGH RISK" etc.) — flag status states
-"Flagged"/"Not flagged" in one accent colour, on or off, never a
-severity gradient (`DECISIONS.md` D32, D36, D37). No number or piece of
-logic on the page has changed across any of its visual design passes,
-only how it's presented. The operating-point summary states the
-row-level FAR as target and achieved separately ("5% target, 5.9%
-achieved," reading the achieved figure from the same artefact this
+`app.py` ("Merchant Reserve Decision Engine," a "Research demo" tag
+beside the title, `DECISIONS.md` D38 — an explicit, later revision of
+D37's original "keep the app name unchanged" instruction, recorded as a
+reversal there, not applied silently) is a Streamlit demonstration of
+the decision this project evaluated. A left navigation rail (About this
+project / Method & limitations / Merchant review, in that display order
+— page destinations only, not a control panel; no logo, no invented
+product branding, `DECISIONS.md` D37/D38; Merchant review is still the
+default landing page regardless of its position in that list) sits
+beside a compact top toolbar (FAR / merchant / week — no permanent
+sidebar of controls, `DECISIONS.md` D36). Merchant review shows five
+equal-weight per-merchant metrics (calibrated hazard, flag status as a
+small state pill, current threshold, average weekly GMV, seller FAR), a
+hazard trajectory over a selectable 6/12/24-week or full window with
+the flag threshold, the selected week, the model's first alarm (dated
+directly on the chart), and — when it falls inside the displayed window
+— the N=8 rule's confirmation date, all marked directly on the chart
+(outside the window, the date is stated in text rather than stretching
+the axis for it, `DECISIONS.md` D37), a stacked cost trade-off /
+simulated policy action / historical-outcome column beside the chart
+(the last rendered as a mini-timeline when the merchant was flagged
+before confirmation, plain text when it wasn't, `DECISIONS.md` D38),
+what changed since last week, an operating-point summary strip, and an
+"about this merchant" panel built only from fields already present in
+the demo's artefacts — no order-level dates are shown, since none exist
+in them, rather than inferring one (D37). Built to one hard rule
+throughout: no gauges, no 0-100 risk scores, no red/amber/green threat
+levels, no alert icons, no categorical risk labels ("HIGH RISK" etc.) —
+flag status states "Flagged"/"Not flagged" in one accent colour, on or
+off, never a severity gradient (`DECISIONS.md` D32, D36-D38). No number
+or piece of logic on the page has changed across any of its visual
+design passes, only how it's presented. The operating-point summary
+states the row-level FAR as target and achieved separately ("5% target,
+5.9% achieved," reading the achieved figure from the same artefact this
 document's Section 4 table reads — an earlier version showed only the
 nominal target, contradicting Section 4's own methodology, fixed in
 `DECISIONS.md` D34) plus the equivalent seller-level rate (Section 3's

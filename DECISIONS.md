@@ -2281,3 +2281,129 @@ destinations before and after the highlighting-lag fix, and both flag
 states — before calling any of it done. `pytest` unaffected (5 passed,
 no `src/`/`tests/` files touched).
 
+### D38 — Nine targeted refinements to the D37 layout, one explicit reversal of an earlier hard exclusion
+
+Nine changes to `app.py`'s presentation, all against the D37 structure,
+none touching a number or piece of evaluated logic.
+
+**Nav order changed, default landing page did not.** `NAV_ITEMS` display
+order became About this project / Method & limitations / Merchant
+review, per instruction. `st.session_state["nav"]`'s default is a
+separate constant (`DEFAULT_NAV = "Merchant review"`), not the first
+item of that list, so reordering the list doesn't change what a fresh
+session opens on — checked directly by re-running both `AppTest`
+scripts after the reorder, not assumed safe because the two are
+separate variables in the code.
+
+**Header changed, and this is a reversal, recorded as one rather than
+silently applied.** D37 carried an explicit hard exclusion: "Do not
+rename or brand the app. It stays 'Reserve decision engine — demo.'"
+This instruction explicitly asks for a different H1 ("Merchant Reserve
+Decision Engine"), a new subtitle ("Historical evaluation & policy
+simulation"), and a small "Research demo" tag beside the title — a
+direct, unambiguous override of that prior constraint from the same
+user, not a reinterpretation of it. Implemented as raw HTML (a flex row
+with the title and tag on one line) rather than `st.title()`, since
+Streamlit's own heading element can't sit inline with another element;
+the custom `.page-title` class matches the theme's own h1 scale
+(`.streamlit/config.toml` `headingFontSizes[0]`, 2rem/700) so it doesn't
+look like a different typographic system from the rest of the page. The
+"historical replay — not a live predictor" claim itself was not
+weakened or moved — it stayed in the warning banner immediately below,
+per instruction, only shortened (next point), not diluted.
+
+**Top warning banner shortened to two lines, same claim, same evidence
+number.** Previously four sentences; now one sentence stating the
+mechanism and the AUC figure, plus one link line to Method &
+limitations, using a markdown forced line break (two trailing spaces)
+inside one `st.warning()` call rather than two banners. Content audited
+against the instruction's own wording ("historical replay... detects
+already-quiet merchants... not reliable advance prediction...
+0.53–0.59 AUC... link to Method & limitations") -- all five elements
+present, nothing dropped.
+
+**"About this demo" card cut to two lines plus a link,** since the same
+claim now leads the page twice already (title area context, main
+banner) and didn't need a third, longer restatement on the first
+screen. Link text changed from "Read more in Method tab" to "Read
+methodology →" to match the shorter register.
+
+**Flag status is now a state pill, not a hero number.** `.status-pill` /
+`.status-dot` classes: a small outlined badge with a coloured dot,
+`on`/`off` classes mapping to the same single accent (`ACCENT_WARM`)
+already established for this exact state in D37/D32 -- no new colour
+introduced. The "on" background is `rgba(181, 96, 46, 0.06)`, a
+low-alpha tint of that same accent hex, not a distinct colour value.
+The outer card (`metric-card-flag`) keeps the identical border/shadow/
+padding as the other four metric cards -- only the *content* inside
+changed shape, addressing the explicit "not doing" instruction that the
+five cards stay equal weight and that tinting the card itself would
+reintroduce severity signalling. Checked by screenshotting the "Not
+flagged" state alongside "Flagged" and confirming the outer card
+styling is identical, only the pill's border/text colour and dot differ.
+
+**Chart legend moved above the plot, symbols matched to the actual
+marks, model-alarm date labelled directly on the chart.** The legend
+row (`—` line, `┄` threshold, `●` selected week, `│` model alarm, `┊`
+confirmation) now renders before `st.altair_chart(...)`, and the
+model-alarm vertical rule gained a same-coloured `mark_text` layer
+showing its date directly beside the line on the chart itself, so that
+one legend entry doesn't need decoding against a separate line below.
+The y-axis domain was also fixed explicitly (`[0, y_top]`, `y_top`
+computed from the trail's own max hazard and the threshold) so the
+in-chart label has stable, non-clipped vertical room regardless of
+which merchant/range is showing -- checked visually, not assumed to
+never clip.
+
+**Historical outcome became a visual mini-timeline** (`mini_timeline()`,
+new function): model alarm on the left, N=8 confirmation on the right,
+a connecting line labelled with the lead time between them. Only
+rendered when the merchant was actually flagged before confirmation
+(`status in {{"beats_rule", "ties_rule"}}` and `model_alarm_week is not
+None`) -- a "never flagged" outcome is stated as plain text instead,
+exactly per instruction ("say so plainly instead of showing a
+timeline"), not forced into a shape that would visually imply a
+detection that didn't happen. Verified by screenshotting a genuine
+never-flagged event merchant (found directly from
+`demo_event_acceleration.csv`, not assumed to exist) and confirming
+the plain-text branch renders, not the timeline.
+
+**Main row restructured: hazard trajectory left (~60%), a stacked right
+column of cost trade-off → simulated policy action → historical
+outcome.** "Simulated policy action" moved out of its D37 full-width
+position below the main row and into this stack, second of three, per
+instruction ("move policy action up").
+
+**Policy-action content cut to a headline stat plus small print.**
+Previously three paragraphs; now: a `.hero-value`-styled headline
+("+15% additional reserve" or "No additional reserve"), one caption
+line ("Applies while the flag holds" / "Under this simulated policy, at
+the current operating point"), the threshold and target FAR as small
+muted text, and the config-assumption caveat as a final muted caption
+-- the same substantive claim as before (model determines only the
+flag; reserve % is a `config/costs.yaml` assumption), just not spread
+across three sentences.
+
+**The "not doing" instruction, checked explicitly rather than assumed
+satisfied by omission:** no new colour was introduced anywhere in this
+entry -- audited every hex/rgba value added against the existing
+palette constants (`ACCENT`, `ACCENT_WARM`, `INK`, `INK_MUTED`, `PAPER`,
+`CARD`, `BORDER`); the only "new" value is the low-alpha tint of
+`ACCENT_WARM` already noted above. All five metric cards share one CSS
+rule (`[class*="st-key-metric-card-"]`) with no per-card overrides, so
+none can visually drift stronger than another without a future edit
+breaking that shared selector on purpose.
+
+Verified: `ruff check app.py` clean. Both existing `AppTest` scripts
+re-run in full -- the D28/D32/D33/D36 smoke-test coverage (every FAR
+option, event and non-event merchants) and D37's scenario script (every
+FAR option, explicit flagged/non-flagged merchants, a 1-week-history
+merchant against 24W/All, an event merchant forced into the
+outside-window case) -- no exceptions in either, confirming the nav
+reorder and every content change didn't disturb the selector indexing
+either script depends on. Rendered and screenshotted for real (headless
+Chromium): the full primary view, all three nav destinations in the new
+order with correct highlighting, both flag-pill states side by side,
+and a genuine never-flagged event merchant to confirm the plain-text
+outcome branch. `pytest` unaffected (no `src/`/`tests/` files touched).
+

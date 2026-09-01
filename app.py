@@ -11,16 +11,18 @@ test set, not a production system, and the result it demonstrates is
 measured and modest, not a product pitch -- see DECISIONS.md D13/D14/D16/
 D19/D21 for the full evidence behind every number surfaced here.
 
-Visual design (DECISIONS.md D32, D36, D37): one considered palette
+Visual design (DECISIONS.md D32, D36, D37, D38): one considered palette
 (`.streamlit/config.toml` + the CSS block in `main()`), applied
 consistently. The one sanctioned exception to "one accent" is the
 feature-contribution chart, where a second colour encodes a genuinely
-signed quantity, plus one status accent for the flag state (D37) --
-never a red/amber/green severity gradient. No gauges, no 0-100 risk
-scores, no red/amber/green threat levels, no alert icons, no categorical
-risk labels ("HIGH RISK" etc.) -- a hazard estimate does not have a
-"danger level," and nothing here should imply more confidence or
-precision than 0.68 AUC and a minority-benefit result support.
+signed quantity, plus one status accent for the flag state -- never a
+red/amber/green severity gradient. No gauges, no 0-100 risk scores, no
+red/amber/green threat levels, no alert icons, no categorical risk
+labels ("HIGH RISK" etc.) -- a hazard estimate does not have a "danger
+level," and nothing here should imply more confidence or precision than
+0.68 AUC and a minority-benefit result support. All five primary metric
+cards are deliberately equal weight -- ranking them is a judgement this
+page doesn't make (DECISIONS.md D38).
 """
 
 from __future__ import annotations
@@ -48,7 +50,12 @@ DEFAULT_FAR = 0.05
 RANGE_OPTIONS = {"6W": 6, "12W": 12, "24W": 24, "All": None}
 DEFAULT_RANGE = "12W"
 
-NAV_ITEMS = ["Merchant review", "Method & limitations", "About this project"]
+# Display order (DECISIONS.md D38): About this project, Method &
+# limitations, Merchant review -- but the landing page on load stays
+# Merchant review regardless of where it sits in this list (see
+# st.session_state["nav"]'s default in main(), not this list).
+NAV_ITEMS = ["About this project", "Method & limitations", "Merchant review"]
+DEFAULT_NAV = "Merchant review"
 
 # One considered palette, matching .streamlit/config.toml, defined once
 # and reused for both the CSS block and the Altair charts so the two
@@ -81,7 +88,7 @@ SUFFIX_LABELS = {"level": "level", "trend": "trend", "accel": "acceleration"}
 
 CUSTOM_CSS = f"""
 <style>
-/* ---- one clean block, one palette, applied throughout (D32, D36, D37) ---- */
+/* ---- one clean block, one palette, applied throughout (D32, D36-D38) ---- */
 
 :root {{
     --fs-display: 2.5rem;
@@ -110,22 +117,22 @@ footer {{ visibility: hidden; height: 0; }}
 }}
 [data-testid="stMetricValue"] {{ color: {INK}; }}
 
-/* Metric/summary cards: restrained shadow + subtle border, denser
-   padding than D36's sections -- matching the reference's information
-   density rather than D36's more spacious single-column cards. The
-   five top metric cards share a "metric-card-*" key prefix (each needs
-   a distinct key -- Streamlit forbids reusing one across a loop of
-   containers -- so this targets the prefix via an attribute selector
-   rather than listing five exact class names). */
+/* Metric/summary cards: restrained shadow + subtle border. The five
+   primary cards share a "metric-card-*" key prefix (each needs a
+   distinct key -- Streamlit forbids reusing one across a loop of
+   containers -- so this targets the prefix, not five exact names).
+   Deliberately identical for all five -- no card is styled to look
+   more important than the others (DECISIONS.md D38). */
 [class*="st-key-metric-card-"], .st-key-cost-card, .st-key-outcome-card,
-.st-key-opstrip-card, .st-key-about-card, .st-key-chart-card {{
+.st-key-opstrip-card, .st-key-about-card, .st-key-chart-card,
+.st-key-policy-card {{
     background: {CARD};
     border: 1px solid {BORDER};
     border-radius: 0.6rem;
     padding: 1rem 1.25rem;
     box-shadow: 0 1px 2px rgba(28, 31, 36, 0.04);
 }}
-.st-key-policy-card, .st-key-changed-card {{
+.st-key-changed-card {{
     background: {CARD};
     border: 1px solid {BORDER};
     border-radius: 0.6rem;
@@ -143,10 +150,10 @@ footer {{ visibility: hidden; height: 0; }}
     box-shadow: 0 1px 2px rgba(28, 31, 36, 0.04);
 }}
 
-/* Left navigation rail -- page destinations only (Merchant review /
-   Method & limitations / About this project), not the FAR/merchant/week
-   controls, which stay in the top toolbar (DECISIONS.md D37). No logo,
-   no product branding -- explicit instruction. */
+/* Left navigation rail -- page destinations only (About this project /
+   Method & limitations / Merchant review, in that display order,
+   DECISIONS.md D38), not the FAR/merchant/week controls, which stay in
+   the top toolbar (D37). No logo, no product branding. */
 .st-key-nav-rail {{
     background: {CARD};
     border: 1px solid {BORDER};
@@ -161,19 +168,53 @@ footer {{ visibility: hidden; height: 0; }}
     background: {PAPER};
     border: 1px solid {BORDER};
     border-radius: 0.6rem;
-    padding: 1rem 1.1rem;
+    padding: 0.85rem 1rem;
     margin-top: 1rem;
     font-size: var(--fs-small);
     color: {INK_MUTED};
 }}
-.st-key-about-demo-card p {{ font-size: var(--fs-small); color: {INK_MUTED}; }}
+.st-key-about-demo-card p {{ font-size: var(--fs-small); color: {INK_MUTED}; margin-bottom: 0.3rem; }}
 
-/* Flag-status accent: ONE colour, on/off, never a severity gradient
-   (hard rule, DECISIONS.md D37). Checked by construction: this class is
-   applied identically regardless of *which* merchant/week is flagged --
-   only whether the boolean is true. */
-.flag-on {{ color: {ACCENT_WARM}; }}
-.flag-off {{ color: {INK}; }}
+/* Page header: title + a small muted "research demo" tag on the same
+   line (DECISIONS.md D38) -- raw HTML, not st.title, specifically so
+   the tag can sit beside it; sized to match the theme's own h1 scale
+   (.streamlit/config.toml headingFontSizes[0]) rather than the
+   browser default. */
+.page-title-row {{ display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.15rem; }}
+.page-title {{ font-size: 2rem; font-weight: 700; color: {INK}; margin: 0; line-height: 1.15; }}
+.tag-muted {{
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid {BORDER};
+    background: {PAPER};
+    color: {INK_MUTED};
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}}
+
+/* Flag status: a proper state pill (dot + outline), not a value --
+   ONE accent colour, on/off, never a severity gradient (hard rule,
+   DECISIONS.md D37/D38). The "on" background is a low-alpha tint of the
+   SAME accent used elsewhere for this state, not a new colour. */
+.status-pill {{
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 999px;
+    border: 1px solid {BORDER};
+    font-size: 1rem;
+    font-weight: 600;
+}}
+.status-pill.on {{ border-color: {ACCENT_WARM}; color: {ACCENT_WARM}; background: rgba(181, 96, 46, 0.06); }}
+.status-pill.off {{ border-color: {BORDER}; color: {INK}; background: {PAPER}; }}
+.status-dot {{ width: 0.5rem; height: 0.5rem; border-radius: 50%; display: inline-block; }}
+.status-dot.on {{ background: {ACCENT_WARM}; }}
+.status-dot.off {{ background: {INK_MUTED}; }}
 
 .hero-label {{
     text-transform: uppercase;
@@ -183,11 +224,42 @@ footer {{ visibility: hidden; height: 0; }}
     color: {INK_MUTED};
     margin-bottom: 0.2rem;
 }}
-.hero-value {{ font-size: var(--fs-display); font-weight: 700; line-height: 1.05; }}
+.hero-value {{ font-size: var(--fs-display); font-weight: 700; line-height: 1.05; color: {INK}; }}
 .hero-sub {{ font-size: var(--fs-small); color: {INK_MUTED}; margin-top: 0.35rem; }}
 
-.timeline-row {{ font-size: var(--fs-small); color: {INK}; margin: 0.15rem 0; }}
-.timeline-row b {{ color: {INK}; }}
+/* Chart legend: compact row above the plot, symbols matching the marks
+   drawn on it exactly (DECISIONS.md D38). */
+.chart-legend {{ font-size: var(--fs-small); color: {INK_MUTED}; margin-bottom: 0.4rem; }}
+.chart-legend span.sw {{ font-weight: 700; margin-right: 0.2rem; }}
+
+/* Mini-timeline: model alarm on the left, N=8 confirmation on the
+   right, a connecting line labelled with the lead time between them
+   (DECISIONS.md D38) -- only rendered when both dates genuinely exist;
+   a "never flagged" outcome is stated as text instead, not forced into
+   this shape. */
+.mini-timeline {{ display: flex; align-items: flex-start; justify-content: space-between; margin: 0.9rem 0 0.5rem; }}
+.tl-point {{ text-align: center; min-width: 5.5rem; }}
+.tl-date {{ font-size: 1.05rem; font-weight: 700; color: {INK}; }}
+.tl-point-label {{
+    font-size: var(--fs-micro);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: {INK_MUTED};
+    margin-top: 0.15rem;
+}}
+.tl-connector {{ flex: 1; position: relative; height: 1px; background: {BORDER}; margin: 0.65rem 0.5rem 0; }}
+.tl-lead {{
+    position: absolute;
+    left: 50%;
+    top: -0.55rem;
+    transform: translateX(-50%);
+    font-size: var(--fs-small);
+    font-weight: 600;
+    color: {INK};
+    white-space: nowrap;
+    background: {CARD};
+    padding: 0 0.4rem;
+}}
 
 div[data-testid="stAlert"] {{
     border: 1px solid {BORDER} !important;
@@ -199,9 +271,9 @@ div[data-testid="stAlert"] {{
 div[data-testid="stAlertContainer"] {{ background: {CARD} !important; }}
 div[data-testid^="stAlertContent"] {{
     background: {CARD} !important;
-    padding: 1.1rem 1.35rem !important;
+    padding: 0.75rem 1.2rem !important;
 }}
-div[data-testid^="stAlertContent"] p {{ color: {INK} !important; }}
+div[data-testid^="stAlertContent"] p {{ color: {INK} !important; margin-bottom: 0.15rem; }}
 div[data-testid^="stAlertContent"] strong {{ color: {INK}; }}
 [data-testid="stAlertDynamicIcon"] {{ display: none !important; }}
 </style>
@@ -296,25 +368,33 @@ def hazard_trajectory_chart(
     current_week: pd.Timestamp,
     model_alarm_week: pd.Timestamp | None,
     rule_confirm_week: pd.Timestamp | None,
-) -> tuple[alt.LayerChart, bool]:
+) -> tuple[alt.LayerChart, bool, bool]:
     """The currently-selected range window (DECISIONS.md D37's 6W/12W/
     24W/All control), trailing from the selected week -- never a future
     week relative to what's selected, consistent with this app's
     point-in-time framing everywhere else. Marks the threshold, the
     selected week (always the rightmost point, by construction of the
-    trailing window), the model's first alarm, and the N=8 rule's
-    confirmation date -- the last two only drawn if they fall inside
-    THIS window, not stretched for. Returns whether each was drawn, so
-    the caller can state undrawn dates as text instead."""
+    trailing window), the model's first alarm (labelled directly on the
+    chart with its date, D38 -- the legend doesn't have to be decoded
+    for that one), and the N=8 rule's confirmation date -- the last two
+    only drawn if they fall inside THIS window, not stretched for.
+    Returns whether each was drawn, so the caller can state undrawn
+    dates as text instead."""
     df = trail[["week", "calibrated_hazard"]].rename(columns={"calibrated_hazard": "hazard"})
     domain_min, domain_max = df["week"].min(), df["week"].max()
+    y_top = max(float(df["hazard"].max()), threshold) * 1.12 or 0.01
 
     line = (
         alt.Chart(df)
         .mark_line(color=ACCENT, strokeWidth=2.25)
         .encode(
             x=alt.X("week:T", title=None, axis=alt.Axis(format="%b %d", grid=False)),
-            y=alt.Y("hazard:Q", title="Calibrated hazard", axis=alt.Axis(format="%", gridColor=BORDER)),
+            y=alt.Y(
+                "hazard:Q",
+                title="Calibrated hazard",
+                axis=alt.Axis(format="%", gridColor=BORDER),
+                scale=alt.Scale(domain=[0, y_top]),
+            ),
             tooltip=[alt.Tooltip("week:T", title="Week"), alt.Tooltip("hazard:Q", title="Hazard", format=".2%")],
         )
     )
@@ -344,7 +424,12 @@ def hazard_trajectory_chart(
             .mark_rule(color=ACCENT_WARM, strokeWidth=1.5)
             .encode(x="x:T")
         )
-        layers.append(alarm_rule)
+        alarm_label = (
+            alt.Chart(pd.DataFrame({"x": [model_alarm_week], "y": [y_top], "t": [model_alarm_week.strftime("%b %d")]}))
+            .mark_text(align="left", dx=4, dy=2, color=ACCENT_WARM, fontSize=10, fontWeight="bold")
+            .encode(x="x:T", y="y:Q", text="t:N")
+        )
+        layers.extend([alarm_rule, alarm_label])
         alarm_drawn = True
 
     confirm_drawn = False
@@ -361,6 +446,23 @@ def hazard_trajectory_chart(
     return chart, alarm_drawn, confirm_drawn
 
 
+def mini_timeline(left_date: str, left_label: str, right_date: str, right_label: str, connector: str) -> str:
+    """Model alarm on the left, rule confirmation on the right, a
+    connecting line labelled with the lead time between them
+    (DECISIONS.md D38). Only called when both endpoints genuinely
+    exist -- a merchant never flagged before confirmation is stated as
+    plain text by the caller instead, not forced into this shape."""
+    return (
+        '<div class="mini-timeline">'
+        f'<div class="tl-point"><div class="tl-date">{left_date}</div>'
+        f'<div class="tl-point-label">{left_label}</div></div>'
+        f'<div class="tl-connector"><span class="tl-lead">{connector}</span></div>'
+        f'<div class="tl-point"><div class="tl-date">{right_date}</div>'
+        f'<div class="tl-point-label">{right_label}</div></div>'
+        "</div>"
+    )
+
+
 def _set_nav(item: str) -> None:
     st.session_state["nav"] = item
 
@@ -370,7 +472,7 @@ def main() -> None:
     st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
     if "nav" not in st.session_state:
-        st.session_state["nav"] = "Merchant review"
+        st.session_state["nav"] = DEFAULT_NAV  # landing page, independent of NAV_ITEMS' display order
 
     predictions, gmv, acceleration, sweep, precision_recall, achieved_far_lookup, costs = load_data()
     contrib_cols = [c for c in predictions.columns if c.startswith("contrib__")]
@@ -385,13 +487,9 @@ def main() -> None:
                 # button's own `type=` argument (primary/secondary) has
                 # already been evaluated with the STALE value, so the
                 # active highlight lags one click behind the content it's
-                # supposed to match. Caught by screenshot (D37), not
-                # assumed correct from the logic alone: clicking "Method
-                # & limitations" switched the content immediately but
-                # left "Merchant review" highlighted. on_click callbacks
-                # run before the script body re-executes, so by the time
-                # `type=` is evaluated on the next run, the state it
-                # reads is already current.
+                # supposed to match (found by screenshot in D37).
+                # on_click callbacks run before the script body
+                # re-executes, so `type=` reads the current state.
                 st.button(
                     item,
                     key=f"nav_{item}",
@@ -401,14 +499,16 @@ def main() -> None:
                     args=(item,),
                 )
         with st.container(key="about-demo-card"):
+            # Cut to two lines plus a link (DECISIONS.md D38) -- the full
+            # framing already lives in the top banner and doesn't need
+            # repeating on the first screen.
             st.markdown(
-                "**About this demo**\n\n"
-                "Historical replay on the Olist Brazilian marketplace test set (2018). The model "
-                "detects sellers that have already gone quiet a little faster than an N=8 "
-                "silent-weeks rule. It does not predict distress weeks in advance."
+                "**About this demo**  \n"
+                "Historical replay on the Olist marketplace test set (2018) — detects "
+                "already-quiet sellers, not future risk."
             )
             st.button(
-                "Read more in Method tab",
+                "Read methodology →",
                 key="nav_about_link",
                 width="stretch",
                 on_click=_set_nav,
@@ -416,19 +516,26 @@ def main() -> None:
             )
 
     with main_col:
-        st.title("Reserve decision engine — demo")
-        st.caption("Historical research replay (not a live predictor)")
+        st.markdown(
+            '<div class="page-title-row">'
+            '<span class="page-title">Merchant Reserve Decision Engine</span>'
+            '<span class="tag-muted">Research demo</span>'
+            "</div>",
+            unsafe_allow_html=True,
+        )
+        st.caption("Historical evaluation & policy simulation")
 
         # ---- required honesty banner, always visible on the primary
-        # view, not collapsible (DECISIONS.md D33, kept through D36/D37's
+        # view, not collapsible (DECISIONS.md D33, kept through D36-D38's
         # layout changes per explicit instruction not to hide or weaken
-        # the historical-replay statement) ----
+        # the historical-replay statement). Shrunk to two lines (D38);
+        # same claim, same evidence figure, less vertical space. ----
         st.warning(
-            "**This is a historical replay of an evaluated result, not a live predictor.** The "
-            "model detects that a seller has already gone quiet, a little faster than a fixed "
-            "rule — it does not predict distress weeks in advance (0.53–0.59 AUC on that specific "
-            "claim; near chance). Full evaluation, the outcomes breakdown at the FAR selected "
-            "below, and the calibration caveat are in **Method & limitations**."
+            "**Historical replay, not a live predictor:** detects merchants already gone "
+            "quiet a little earlier than the N=8 rule — not reliable advance prediction "
+            "(0.53–0.59 AUC on that specific claim).  \n"
+            "Full evaluation and the outcomes breakdown at the FAR selected below: "
+            "**Method & limitations**."
         )
 
         # ---- compact toolbar: FAR, merchant, week -- no permanent
@@ -532,8 +639,12 @@ def _render_merchant_review(
     model_alarm_week, rule_confirm_week, seller_id, achieved,
     predictions,
 ) -> None:
-    # ---- five primary metric cards ----
-    flag_class = "flag-on" if flagged else "flag-off"
+    # ---- five primary metric cards -- deliberately equal weight
+    # (DECISIONS.md D38): no card is styled larger, bolder, or tinted
+    # to look more important than the others. Flag status is the one
+    # exception in CONTENT (a state pill rather than a hero number),
+    # not in card styling -- the outer card is identical to the rest. ----
+    flag_class = "on" if flagged else "off"
     flag_text = "Flagged" if flagged else "Not flagged"
     m1, m2, m3, m4, m5 = st.columns(5)
     with m1, st.container(key="metric-card-hazard"):
@@ -550,7 +661,8 @@ def _render_merchant_review(
     with m2, st.container(key="metric-card-flag"):
         st.markdown(
             '<div class="hero-label">Flag status</div>'
-            f'<div class="hero-value {flag_class}" style="font-size:1.9rem">{flag_text}</div>'
+            f'<div style="margin-top:0.35rem"><span class="status-pill {flag_class}">'
+            f'<span class="status-dot {flag_class}"></span>{flag_text}</span></div>'
             f'<div class="hero-sub">Score {"≥" if flagged else "<"} threshold ({threshold:.2%})</div>',
             unsafe_allow_html=True,
         )
@@ -578,8 +690,10 @@ def _render_merchant_review(
 
     st.write("")
 
-    # ---- main analysis row: hazard trajectory (~60%) + cost trade-off
-    # and historical outcome (~40%) ----
+    # ---- main analysis row: hazard trajectory (~60%) on the left; a
+    # stacked column on the right -- cost trade-off, then simulated
+    # policy action, then historical outcome (DECISIONS.md D38, moved
+    # policy action up from its former full-width position below) ----
     chart_col, info_col = st.columns([3, 2])
 
     with chart_col:
@@ -600,27 +714,30 @@ def _render_merchant_review(
             # .tail(n) degrades gracefully on its own when the merchant
             # has fewer observations than the chosen range: it returns
             # whatever rows exist, no error, no padding, no change to
-            # the analytical result (DECISIONS.md D37, checked below).
+            # the analytical result (DECISIONS.md D37, checked there).
             up_to_selected = merchant_rows[merchant_rows["week"] <= row["week"]]
             trail = up_to_selected.tail(n_weeks) if n_weeks is not None else up_to_selected
+
+            # Compact legend ABOVE the plot, symbols matching the marks
+            # exactly (DECISIONS.md D38) -- the model-alarm date is also
+            # labelled directly on the chart itself, so this entry
+            # doesn't need decoding on its own.
+            legend_bits = [
+                f'<span class="sw" style="color:{ACCENT}">—</span>Calibrated hazard',
+                f'<span class="sw" style="color:{INK_MUTED}">┄</span>Threshold ({far_label(far)} FAR)',
+                f'<span class="sw" style="color:{INK}">●</span>Selected week',
+            ]
+            if model_alarm_week is not None:
+                legend_bits.append(f'<span class="sw" style="color:{ACCENT_WARM}">│</span>Model alarm')
+            if rule_confirm_week is not None:
+                legend_bits.append(f'<span class="sw" style="color:{INK}">┊</span>N=8 confirmation')
+            st.markdown(f'<div class="chart-legend">{" &nbsp;&nbsp; ".join(legend_bits)}</div>', unsafe_allow_html=True)
 
             chart, alarm_drawn, confirm_drawn = hazard_trajectory_chart(
                 trail, threshold, row["week"], model_alarm_week, rule_confirm_week
             )
             st.altair_chart(chart, width="stretch")
 
-            legend = (
-                "— Calibrated hazard &nbsp; · &nbsp; "
-                "<span style='color:#646B78'>┄</span> Threshold "
-                f"({far_label(far)} FAR) &nbsp; · &nbsp; ● Selected week"
-            )
-            if model_alarm_week is not None:
-                legend += " &nbsp; · &nbsp; <span style='color:#B5602E'>│</span> Model alarm"
-            if rule_confirm_week is not None:
-                legend += " &nbsp; · &nbsp; <span style='color:#1C1F24'>┊</span> N=8 rule confirmation"
-            st.markdown(f'<div class="hero-sub">{legend}</div>', unsafe_allow_html=True)
-
-            st.write("")
             # Compact alarm/confirmation summary strip, always stated as
             # text regardless of whether either marker was drawn on the
             # chart above -- so a narrow range that pushes one or both
@@ -666,6 +783,34 @@ def _render_merchant_review(
 
         st.write("")
 
+        # ---- simulated policy action -- moved into the right-hand
+        # stack (D38) and cut to a headline stat plus small print;
+        # anything longer belongs in Method & limitations ----
+        with st.container(key="policy-card"):
+            st.subheader("Simulated policy action")
+            if flagged:
+                st.markdown(
+                    f'<div class="hero-value" style="font-size:1.6rem">+{reserve_pct:.0%} additional reserve</div>',
+                    unsafe_allow_html=True,
+                )
+                st.caption("Applies while the flag holds.")
+            else:
+                st.markdown(
+                    '<div class="hero-value" style="font-size:1.6rem">No additional reserve</div>',
+                    unsafe_allow_html=True,
+                )
+                st.caption("Under this simulated policy, at the current operating point.")
+            st.markdown(
+                f'<div class="hero-sub">Threshold {threshold:.4f} · {far_label(far)} target FAR</div>',
+                unsafe_allow_html=True,
+            )
+            st.caption(
+                "Reserve % is a fixed `config/costs.yaml` assumption — the model determines only "
+                "the flag (Section 2, limitation 2; DECISIONS.md D15)."
+            )
+
+        st.write("")
+
         with st.container(key="outcome-card"):
             st.subheader("Historical outcome (test set)")
             if not is_event:
@@ -674,65 +819,38 @@ def _render_merchant_review(
                     "observed within the study window."
                 )
                 if model_alarm_week is not None:
-                    st.markdown(
-                        f'<div class="timeline-row">Model alarm: <b>{model_alarm_week.date()}</b></div>',
-                        unsafe_allow_html=True,
-                    )
+                    st.markdown(f"Model alarm: **{model_alarm_week.date()}**.")
                 else:
-                    st.markdown(
-                        f'<div class="timeline-row">Never flagged at {far_label(far)} FAR in this merchant\'s '
-                        "test-window history.</div>",
-                        unsafe_allow_html=True,
-                    )
+                    st.markdown(f"Never flagged at {far_label(far)} FAR in this merchant's test-window history.")
             else:
                 outcome_row = accel_at_far[accel_at_far["seller_id"] == row["seller_id"]]
                 status = outcome_row.iloc[0]["status"] if len(outcome_row) else None
                 st.write("This merchant went on to a **confirmed cessation**.")
-                if status == "never_flagged":
-                    # Stated directly, per instruction, rather than
-                    # implying an earlier detection that didn't happen.
+                if status == "never_flagged" or model_alarm_week is None:
+                    # Stated plainly, per instruction, rather than forcing
+                    # a timeline visual that would imply a detection that
+                    # didn't happen.
                     st.write(
                         f"The model **never flagged** this merchant before the N=8 rule confirmed "
                         f"it on {row['event_week'].date()} — the same outcome the naive rule alone "
                         "would give."
                     )
-                st.markdown(
-                    f'<div class="timeline-row">Model alarm: '
-                    f'<b>{model_alarm_week.date() if model_alarm_week is not None else "never"}</b></div>'
-                    f'<div class="timeline-row">N=8 rule confirmation: <b>{row["event_week"].date()}</b></div>',
-                    unsafe_allow_html=True,
-                )
-                if status == "beats_rule" and len(outcome_row):
-                    weeks = outcome_row.iloc[0]["acceleration_weeks"]
+                else:
+                    if status == "beats_rule" and len(outcome_row):
+                        weeks = outcome_row.iloc[0]["acceleration_weeks"]
+                        connector = f"{weeks:.0f} weeks earlier"
+                    else:
+                        connector = "same week"
                     st.markdown(
-                        f'<div class="timeline-row">Lead time: <b>{weeks:.0f} weeks earlier</b></div>',
+                        mini_timeline(
+                            str(model_alarm_week.date()), "Model alarm",
+                            str(row["event_week"].date()), "N=8 confirmation",
+                            connector,
+                        ),
                         unsafe_allow_html=True,
                     )
-                elif status == "ties_rule":
-                    st.markdown('<div class="timeline-row">Lead time: <b>same week as the rule</b></div>', unsafe_allow_html=True)
 
     st.write("")
-
-    # ---- simulated policy action ----
-    with st.container(key="policy-card"):
-        st.subheader("Simulated policy action")
-        st.caption(
-            "The model determines only the flag (hazard ≥ threshold, above). The reserve "
-            "percentage applied when flagged is a fixed `config/costs.yaml` assumption, not "
-            "something the model sizes or has any say over — see Section 2, limitation 2."
-        )
-        if flagged:
-            st.write(
-                f"**Hold an additional {reserve_pct:.0%} reserve** on this merchant's settlements "
-                f"while the flag holds (threshold {threshold:.4f} at {far_label(far)} FAR)."
-            )
-        else:
-            st.write(f"**No additional reserve under this simulated policy** at the {far_label(far)} operating point.")
-        st.caption(
-            "This is a binary threshold policy — flag or don't — with a fixed reserve percentage "
-            "when flagged, not a continuous hazard-to-reserve formula (that fuller design was "
-            "scoped out; DECISIONS.md D15)."
-        )
 
     # ---- what changed since last week ----
     with st.container(key="changed-card"):
@@ -851,10 +969,9 @@ def _render_method_and_limitations(
     far: float, achieved: float | None, n_events: int, accel_at_far: pd.DataFrame
 ) -> None:
     """Every word that used to occupy most of the page's visible area
-    (DECISIONS.md D33) -- relocated, not cut and not softened. Now its
-    own left-nav destination rather than a tab (DECISIONS.md D37), still
-    reachable in one click from the primary view's banner and the "About
-    this demo" card."""
+    (DECISIONS.md D33) -- relocated, not cut and not softened. A left-nav
+    destination rather than a tab (D37), still reachable in one click
+    from the primary view's banner and the "About this demo" card."""
     st.subheader("What this model actually does")
     st.warning(
         "**What this model actually does:** it does not predict distress weeks in advance "
@@ -918,7 +1035,7 @@ def _render_method_and_limitations(
 
 
 def _render_about_project() -> None:
-    """New left-nav destination (DECISIONS.md D37) -- a short, honest
+    """Left-nav destination (DECISIONS.md D37) -- a short, honest
     orientation page, not a new analysis. Everything here restates
     claims already established and cited elsewhere (README.md,
     DECISIONS.md); nothing new is computed for it."""
