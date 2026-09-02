@@ -2522,3 +2522,90 @@ the relabelled/tooltipped tenure field, the full page bottom confirming
 (`#2F6F8F`) via `getComputedStyle`, not just read from the source.
 `pytest` unaffected (no `src/`/`tests/` files touched).
 
+### D40 — D39's row-height fix reverted and replaced: the CSS flexbox equaliser was the cause of the gap it was meant to close, not the fix for it
+
+D39 diagnosed the hazard-chart/info-column height mismatch correctly
+but "fixed" it by forcing the shorter column to grow to match the
+taller one (`align-items: stretch` plus `flex: 1 1 auto` on the chart
+card). That worked for the specific pairing D39 built — hazard chart
+vs. a three-card stack (cost trade-off, policy action, historical
+outcome) — because the three-card stack was reliably the taller side.
+This instruction reports the same class of problem recurring: once the
+page is scrolled past what D39 screenshotted, the chart card is
+*forced* taller than its own content needs, because it's being
+stretched to match a right column that, for a plain/unflagged merchant
+(shorter `outcome-card` branch), no longer needs that much height
+either — the "equal heights" contract doesn't hold in both directions,
+it only ever matched the one screenshot it was checked against. The
+underlying design flaw: **matching two columns' heights by force is
+inherently fragile whenever either side's content length is
+conditional** (D39 already knew this about `outcome-card`'s two
+branches — that's *why* it reached for flexbox instead of a pixel
+constant — but flexbox height-matching has the identical failure mode
+as a pixel constant: both assume a stable relationship between two
+columns' content lengths that this page doesn't have).
+
+**The actual fix, per instruction, is structural, not CSS: stop pairing
+columns whose content lengths are decoupled.** Three rows, restructured
+so each row's two columns are the ones most likely to be similar
+length, and — more importantly — so that no column's height is ever
+artificially forced to match its sibling's:
+
+- **Row 1** (~60/40): hazard trajectory beside cost trade-off +
+  simulated policy action. `historical outcome` — the one card whose
+  length is conditional on `is_event`/`status` (a two-endpoint
+  mini-timeline vs. one line of text) — moved OUT of this row
+  entirely, since it was that card's variability that made the old
+  three-card stack an unstable target.
+- **Row 2** (~65/35): what changed since last week beside historical
+  outcome + about this merchant. Simulated policy action stays in Row
+  1 (next to the merchant's current state, where it reads best) rather
+  than being duplicated into Row 2.
+- **Row 3** (full width): operating point summary — unchanged from
+  D39, still the literal last element on the page.
+
+All of D39's flexbox-equaliser CSS was removed outright (`align-items:
+stretch` on `.st-key-row-hazard-info`'s horizontal block, `flex: 1 1
+auto` on the chart card and its wrapper) rather than retargeted at the
+new row boundaries — per instruction, no fixed heights, negative
+margins, absolute positioning, clipping, or arbitrary CSS offsets to
+force alignment. Columns now render at their own natural height with
+no cross-column height dependency at all; a row's total height is
+simply whichever column is taller (ordinary block layout, not a CSS
+trick), and the next row begins in normal document flow immediately
+after that, with only the existing `st.write("")` spacer between rows
+-- the same spacer every other row boundary on this page already uses.
+
+Chart height (`hazard_trajectory_chart`'s `properties(height=...)`)
+was left at D39's `320` — that number sizes the Altair chart's own
+rendering, which Altair requires as an explicit value regardless of
+layout; it was never the mechanism forcing the two *columns* to align
+past D39's flexbox addition. `.status-pill`/`.status-dot` colour
+semantics (D39) untouched — this entry is layout-only.
+
+**A remaining, natural asymmetry, deliberately not "fixed" further:**
+in Row 2, the "about this merchant" column (`outcome-card` +
+`about-card` stacked) is often taller than "what changed since last
+week," so that column ends with visible card-shaped space below it
+before Row 3 begins — exactly as Row 1 can be asymmetric the other way
+depending on flag state. This is the expected, un-forced behaviour of
+two natural-height columns with different content, not a defect: Row 3
+still begins immediately after the row's *true* end (the taller
+column), which is what the instruction required explicitly for the
+Row 1 → Row 2 boundary. Forcing Row 2's columns to match would require
+exactly the disallowed techniques.
+
+Verified: `ruff check app.py` clean. Both existing `AppTest` scripts
+re-run in full after the restructuring — no exceptions. Rendered and
+screenshotted for real (headless Chromium, scrolled top to bottom) on
+two cases specifically because conditional content was the root cause
+last time: the default flagged merchant at 5% FAR (`fashion_shoes`,
+confirmed cessation, mini-timeline outcome branch), and the same
+merchant forced to an unflagged week via its first observed week
+(`Not flagged` pill confirmed blue, "No prior week" changed-card
+branch, censored/plain-text outcome branch). In both cases Row 2 began
+immediately after Row 1's actual (taller-column) content ended, with no
+large empty card or blank region beneath the trajectory in either
+scenario. `pytest` unaffected (5 passed, no `src/`/`tests/` files
+touched).
+

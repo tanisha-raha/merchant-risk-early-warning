@@ -161,29 +161,6 @@ footer {{ visibility: hidden; height: 0; }}
 
 .spacer-sm {{ height: 0.6rem; }}
 
-/* Hazard-chart / info-column row: the info column's height varies with
-   content (mini-timeline vs. one line of text), so the shorter side
-   gets a flex spacer instead of a fixed chart height chasing a moving
-   target (DECISIONS.md D39). */
-.st-key-row-hazard-info [data-testid="stHorizontalBlock"] {{ align-items: stretch; }}
-.st-key-row-hazard-info [data-testid="stColumn"]:first-of-type > [data-testid="stVerticalBlock"] {{
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-}}
-/* The chart card is the sole child of that flex column -- growing it
-   (not a separate invisible spacer) means the extra vertical space
-   becomes more of the CARD itself, not blank page background next to
-   it, which is what actually reads as "a gap" (DECISIONS.md D39). */
-.st-key-row-hazard-info [data-testid="stColumn"]:first-of-type
-    > [data-testid="stVerticalBlock"] > [data-testid="stLayoutWrapper"]:first-child {{
-    flex: 1 1 auto;
-}}
-.st-key-row-hazard-info .st-key-chart-card {{
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-}}
 .st-key-toolbar {{
     background: {CARD};
     border: 1px solid {BORDER};
@@ -710,183 +687,138 @@ def _render_merchant_review(
 
     st.write("")
 
-    # ---- main analysis row: hazard trajectory (~60%) on the left; a
-    # stacked column on the right -- cost trade-off, then simulated
-    # policy action, then historical outcome (DECISIONS.md D38, moved
-    # policy action up from its former full-width position below).
-    # Row wrapped in a keyed container so a flex spacer can equalise the
-    # two columns' bottoms regardless of which side is longer for a
-    # given merchant -- the info column's height varies with
-    # flagged/not-flagged state (mini-timeline vs. a line of text), so a
-    # fixed chart height alone can't track it merchant to merchant
-    # (DECISIONS.md D39). ----
-    with st.container(key="row-hazard-info"):
-        chart_col, info_col = st.columns([3, 2])
+    # ---- Row 1: hazard trajectory (~60%) beside cost trade-off + simulated
+    # policy action (~40%). No forced height-matching between the two
+    # columns -- each renders at its own natural height and the row's
+    # height is simply whichever column is taller (normal document flow);
+    # historical outcome moved out of this column into Row 2, since it was
+    # the variable-length content (mini-timeline vs. one line of text) that
+    # made the old three-card stack an unstable target to match (D39 tried
+    # matching heights to it with flexbox; that's what produced the large
+    # blank area under the chart once the stack was longer than the chart
+    # needed to be -- removed here rather than patched, DECISIONS.md D40). ----
+    chart_col, info_col = st.columns([60, 40])
 
-        with chart_col:
-            with st.container(key="chart-card"):
-                top_row = st.columns([3, 2])
-                with top_row[0]:
-                    st.subheader("Hazard trajectory (weekly)")
-                with top_row[1]:
-                    range_choice = st.segmented_control(
-                        "Range", list(RANGE_OPTIONS.keys()), default=DEFAULT_RANGE, label_visibility="collapsed"
-                    )
-                range_choice = range_choice or DEFAULT_RANGE
-                n_weeks = RANGE_OPTIONS[range_choice]
+    with chart_col, st.container(key="chart-card"):
+        top_row = st.columns([3, 2])
+        with top_row[0]:
+            st.subheader("Hazard trajectory (weekly)")
+        with top_row[1]:
+            range_choice = st.segmented_control(
+                "Range", list(RANGE_OPTIONS.keys()), default=DEFAULT_RANGE, label_visibility="collapsed"
+            )
+        range_choice = range_choice or DEFAULT_RANGE
+        n_weeks = RANGE_OPTIONS[range_choice]
 
-                # Trailing window ending at the selected week -- never a
-                # future week relative to what's selected (consistent with
-                # this app's point-in-time framing everywhere else).
-                # .tail(n) degrades gracefully on its own when the merchant
-                # has fewer observations than the chosen range: it returns
-                # whatever rows exist, no error, no padding, no change to
-                # the analytical result (DECISIONS.md D37, checked there).
-                up_to_selected = merchant_rows[merchant_rows["week"] <= row["week"]]
-                trail = up_to_selected.tail(n_weeks) if n_weeks is not None else up_to_selected
+        # Trailing window ending at the selected week -- never a
+        # future week relative to what's selected (consistent with
+        # this app's point-in-time framing everywhere else).
+        # .tail(n) degrades gracefully on its own when the merchant
+        # has fewer observations than the chosen range: it returns
+        # whatever rows exist, no error, no padding, no change to
+        # the analytical result (DECISIONS.md D37, checked there).
+        up_to_selected = merchant_rows[merchant_rows["week"] <= row["week"]]
+        trail = up_to_selected.tail(n_weeks) if n_weeks is not None else up_to_selected
 
-                # Compact legend ABOVE the plot, symbols matching the marks
-                # exactly (DECISIONS.md D38) -- the model-alarm date is also
-                # labelled directly on the chart itself, so this entry
-                # doesn't need decoding on its own.
-                legend_bits = [
-                    f'<span class="sw" style="color:{ACCENT}">—</span>Calibrated hazard',
-                    f'<span class="sw" style="color:{INK_MUTED}">┄</span>Threshold ({far_label(far)} FAR)',
-                    f'<span class="sw" style="color:{INK}">●</span>Selected week',
-                ]
-                if model_alarm_week is not None:
-                    legend_bits.append(f'<span class="sw" style="color:{ACCENT_WARM}">│</span>Model alarm')
-                if rule_confirm_week is not None:
-                    legend_bits.append(f'<span class="sw" style="color:{INK}">┊</span>N=8 confirmation')
-                st.markdown(
-                    f'<div class="chart-legend">{" &nbsp;&nbsp; ".join(legend_bits)}</div>', unsafe_allow_html=True
-                )
+        # Compact legend ABOVE the plot, symbols matching the marks
+        # exactly (DECISIONS.md D38) -- the model-alarm date is also
+        # labelled directly on the chart itself, so this entry
+        # doesn't need decoding on its own.
+        legend_bits = [
+            f'<span class="sw" style="color:{ACCENT}">—</span>Calibrated hazard',
+            f'<span class="sw" style="color:{INK_MUTED}">┄</span>Threshold ({far_label(far)} FAR)',
+            f'<span class="sw" style="color:{INK}">●</span>Selected week',
+        ]
+        if model_alarm_week is not None:
+            legend_bits.append(f'<span class="sw" style="color:{ACCENT_WARM}">│</span>Model alarm')
+        if rule_confirm_week is not None:
+            legend_bits.append(f'<span class="sw" style="color:{INK}">┊</span>N=8 confirmation')
+        st.markdown(
+            f'<div class="chart-legend">{" &nbsp;&nbsp; ".join(legend_bits)}</div>', unsafe_allow_html=True
+        )
 
-                chart, alarm_drawn, confirm_drawn = hazard_trajectory_chart(
-                    trail, threshold, row["week"], model_alarm_week, rule_confirm_week
-                )
-                st.altair_chart(chart, width="stretch")
+        chart, alarm_drawn, confirm_drawn = hazard_trajectory_chart(
+            trail, threshold, row["week"], model_alarm_week, rule_confirm_week
+        )
+        st.altair_chart(chart, width="stretch")
 
-                # Compact alarm/confirmation summary strip, always stated as
-                # text regardless of whether either marker was drawn on the
-                # chart above -- so a narrow range that pushes one or both
-                # off-chart doesn't lose the fact, just the visual marker
-                # (DECISIONS.md D37: "don't stretch the axis, state it
-                # instead").
-                strip_cols = st.columns([2, 2, 1])
-                with strip_cols[0]:
-                    alarm_txt = model_alarm_week.date() if model_alarm_week is not None else "never (this FAR)"
-                    off_chart = "" if alarm_drawn or model_alarm_week is None else " *(outside displayed range)*"
-                    st.markdown(f"**Model alarm:** {alarm_txt}{off_chart}")
-                with strip_cols[1]:
-                    if rule_confirm_week is not None:
-                        off_chart = "" if confirm_drawn else " *(outside displayed range)*"
-                        st.markdown(f"**N=8 rule confirmation:** {rule_confirm_week.date()}{off_chart}")
-                    elif is_event:
-                        st.markdown("**N=8 rule confirmation:** —")
-                    else:
-                        st.markdown("**N=8 rule confirmation:** n/a (not a confirmed cessation)")
-                with strip_cols[2]:
-                    if is_event and model_alarm_week is not None and rule_confirm_week is not None:
-                        lead = (rule_confirm_week - model_alarm_week).days / 7
-                        if lead > 0:
-                            st.markdown(f"**{lead:.0f} weeks earlier**")
-                        else:
-                            st.markdown("**Same week**")
-
-        with info_col:
-            with st.container(key="cost-card"):
-                st.subheader("Estimated cost trade-off at this reserve level")
-                weekly_wc_cost = weekly_gmv * reserve_pct * wc_rate
-                two_week_benefit = 2 * weekly_gmv * reserve_pct * benefit_capture
-                cx, cy = st.columns(2)
-                with cx:
-                    st.metric("If false alarm", f"{reais(weekly_wc_cost)} / wk")
-                    st.caption("Working-capital cost while flagged (config/costs.yaml).")
-                with cy:
-                    st.metric("If caught ~2wk early", reais(two_week_benefit))
-                    st.caption(
-                        "Illustrative — 2 weeks is the population median acceleration when the model "
-                        "does beat the rule (a minority of cases; see the banner above)."
-                    )
-
-            st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
-
-            # ---- simulated policy action -- moved into the right-hand
-            # stack (D38) and cut to a headline stat plus small print;
-            # anything longer belongs in Method & limitations ----
-            with st.container(key="policy-card"):
-                st.subheader("Simulated policy action")
-                if flagged:
-                    st.markdown(
-                        f'<div class="hero-value" style="font-size:1.6rem">'
-                        f"+{reserve_pct:.0%} additional reserve</div>",
-                        unsafe_allow_html=True,
-                    )
-                    st.caption("Applies while the flag holds.")
+        # Compact alarm/confirmation summary strip, always stated as
+        # text regardless of whether either marker was drawn on the
+        # chart above -- so a narrow range that pushes one or both
+        # off-chart doesn't lose the fact, just the visual marker
+        # (DECISIONS.md D37: "don't stretch the axis, state it
+        # instead").
+        strip_cols = st.columns([2, 2, 1])
+        with strip_cols[0]:
+            alarm_txt = model_alarm_week.date() if model_alarm_week is not None else "never (this FAR)"
+            off_chart = "" if alarm_drawn or model_alarm_week is None else " *(outside displayed range)*"
+            st.markdown(f"**Model alarm:** {alarm_txt}{off_chart}")
+        with strip_cols[1]:
+            if rule_confirm_week is not None:
+                off_chart = "" if confirm_drawn else " *(outside displayed range)*"
+                st.markdown(f"**N=8 rule confirmation:** {rule_confirm_week.date()}{off_chart}")
+            elif is_event:
+                st.markdown("**N=8 rule confirmation:** —")
+            else:
+                st.markdown("**N=8 rule confirmation:** n/a (not a confirmed cessation)")
+        with strip_cols[2]:
+            if is_event and model_alarm_week is not None and rule_confirm_week is not None:
+                lead = (rule_confirm_week - model_alarm_week).days / 7
+                if lead > 0:
+                    st.markdown(f"**{lead:.0f} weeks earlier**")
                 else:
-                    st.markdown(
-                        '<div class="hero-value" style="font-size:1.6rem">No additional reserve</div>',
-                        unsafe_allow_html=True,
-                    )
-                    st.caption("Under this simulated policy, at the current operating point.")
+                    st.markdown("**Same week**")
+
+    with info_col:
+        with st.container(key="cost-card"):
+            st.subheader("Estimated cost trade-off at this reserve level")
+            weekly_wc_cost = weekly_gmv * reserve_pct * wc_rate
+            two_week_benefit = 2 * weekly_gmv * reserve_pct * benefit_capture
+            cx, cy = st.columns(2)
+            with cx:
+                st.metric("If false alarm", f"{reais(weekly_wc_cost)} / wk")
+                st.caption("Working-capital cost while flagged (config/costs.yaml).")
+            with cy:
+                st.metric("If caught ~2wk early", reais(two_week_benefit))
+                st.caption(
+                    "Illustrative — 2 weeks is the population median acceleration when the model "
+                    "does beat the rule (a minority of cases; see the banner above)."
+                )
+
+        st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
+
+        # ---- simulated policy action -- cut to a headline stat plus small
+        # print; anything longer belongs in Method & limitations ----
+        with st.container(key="policy-card"):
+            st.subheader("Simulated policy action")
+            if flagged:
                 st.markdown(
-                    f'<div class="hero-sub">Threshold {threshold:.4f} · {far_label(far)} target FAR</div>',
+                    f'<div class="hero-value" style="font-size:1.6rem">'
+                    f"+{reserve_pct:.0%} additional reserve</div>",
                     unsafe_allow_html=True,
                 )
-                st.caption(
-                    "Reserve % is a fixed `config/costs.yaml` assumption — the model determines only "
-                    "the flag (Section 2, limitation 2; DECISIONS.md D15)."
+                st.caption("Applies while the flag holds.")
+            else:
+                st.markdown(
+                    '<div class="hero-value" style="font-size:1.6rem">No additional reserve</div>',
+                    unsafe_allow_html=True,
                 )
-
-            st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
-
-            with st.container(key="outcome-card"):
-                st.subheader("Historical outcome (test set)")
-                if not is_event:
-                    st.write(
-                        "This merchant is **censored** in the test set — no confirmed cessation "
-                        "observed within the study window."
-                    )
-                    if model_alarm_week is not None:
-                        st.markdown(f"Model alarm: **{model_alarm_week.date()}**.")
-                    else:
-                        st.markdown(
-                            f"Never flagged at {far_label(far)} FAR in this merchant's test-window history."
-                        )
-                else:
-                    outcome_row = accel_at_far[accel_at_far["seller_id"] == row["seller_id"]]
-                    status = outcome_row.iloc[0]["status"] if len(outcome_row) else None
-                    st.write("This merchant went on to a **confirmed cessation**.")
-                    if status == "never_flagged" or model_alarm_week is None:
-                        # Stated plainly, per instruction, rather than forcing
-                        # a timeline visual that would imply a detection that
-                        # didn't happen.
-                        st.write(
-                            f"The model **never flagged** this merchant before the N=8 rule confirmed "
-                            f"it on {row['event_week'].date()} — the same outcome the naive rule alone "
-                            "would give."
-                        )
-                    else:
-                        if status == "beats_rule" and len(outcome_row):
-                            weeks = outcome_row.iloc[0]["acceleration_weeks"]
-                            connector = f"{weeks:.0f} weeks earlier"
-                        else:
-                            connector = "same week"
-                        st.markdown(
-                            mini_timeline(
-                                str(model_alarm_week.date()), "Model alarm",
-                                str(row["event_week"].date()), "N=8 confirmation",
-                                connector,
-                            ),
-                            unsafe_allow_html=True,
-                        )
+                st.caption("Under this simulated policy, at the current operating point.")
+            st.markdown(
+                f'<div class="hero-sub">Threshold {threshold:.4f} · {far_label(far)} target FAR</div>',
+                unsafe_allow_html=True,
+            )
+            st.caption(
+                "Reserve % is a fixed `config/costs.yaml` assumption — the model determines only "
+                "the flag (Section 2, limitation 2; DECISIONS.md D15)."
+            )
 
     st.write("")
 
-    # ---- what changed since last week (~65%) beside about this merchant
-    # (~35%) -- policy action already lives in the row above, next to the
-    # merchant's current state; not duplicated here (DECISIONS.md D39) ----
+    # ---- Row 2: what changed since last week (~65%) beside historical
+    # outcome + about this merchant (~35%) (DECISIONS.md D40). Simulated
+    # policy action stays in Row 1, next to the merchant's current state;
+    # not duplicated here. ----
     changed_col, about_col = st.columns([65, 35])
 
     with changed_col, st.container(key="changed-card"):
@@ -934,42 +866,86 @@ def _render_merchant_review(
                 "the one signed quantity in this chart, so it's used for meaning, not decoration."
             )
 
-    with about_col, st.container(key="about-card"):
-        st.subheader("About this merchant (in test window)")
-        # Only fields already present in the committed demo artefacts --
-        # no order-level "first order"/"total orders" date exists in
-        # demo_test_predictions.csv (checked, not assumed; it's a weekly
-        # panel, not order-level), so those are not fabricated here.
-        # tenure_weeks, category, and week are the stored fields used.
-        category = merchant_rows["category"].iloc[0]
-        first_week = merchant_rows["week"].min()
-        last_week = merchant_rows["week"].max()
-        weeks_observed = len(merchant_rows)
-        dataset_last_week = predictions["week"].max()
-        weeks_since_last = int((dataset_last_week - last_week).days // 7)
-        tenure_at_first = int(merchant_rows["tenure_weeks"].iloc[0])
+    with about_col:
+        with st.container(key="outcome-card"):
+            st.subheader("Historical outcome (test set)")
+            if not is_event:
+                st.write(
+                    "This merchant is **censored** in the test set — no confirmed cessation "
+                    "observed within the study window."
+                )
+                if model_alarm_week is not None:
+                    st.markdown(f"Model alarm: **{model_alarm_week.date()}**.")
+                else:
+                    st.markdown(
+                        f"Never flagged at {far_label(far)} FAR in this merchant's test-window history."
+                    )
+            else:
+                outcome_row = accel_at_far[accel_at_far["seller_id"] == row["seller_id"]]
+                status = outcome_row.iloc[0]["status"] if len(outcome_row) else None
+                st.write("This merchant went on to a **confirmed cessation**.")
+                if status == "never_flagged" or model_alarm_week is None:
+                    # Stated plainly, per instruction, rather than forcing
+                    # a timeline visual that would imply a detection that
+                    # didn't happen.
+                    st.write(
+                        f"The model **never flagged** this merchant before the N=8 rule confirmed "
+                        f"it on {row['event_week'].date()} — the same outcome the naive rule alone "
+                        "would give."
+                    )
+                else:
+                    if status == "beats_rule" and len(outcome_row):
+                        weeks = outcome_row.iloc[0]["acceleration_weeks"]
+                        connector = f"{weeks:.0f} weeks earlier"
+                    else:
+                        connector = "same week"
+                    st.markdown(
+                        mini_timeline(
+                            str(model_alarm_week.date()), "Model alarm",
+                            str(row["event_week"].date()), "N=8 confirmation",
+                            connector,
+                        ),
+                        unsafe_allow_html=True,
+                    )
 
-        a1, a2 = st.columns(2)
-        a1.metric("Category", category)
-        a2.metric(
-            "Merchant tenure",
-            f"{tenure_at_first} wk",
-            help=(
-                "Weeks since this merchant's first observed order-week, as of the first row "
-                "of its test-window history (tenure_weeks in the underlying panel) — not "
-                "recomputed at the selected week."
-            ),
-        )
-        a3, a4 = st.columns(2)
-        a3.metric("First week observed", str(first_week.date()))
-        a4.metric("Last week observed", str(last_week.date()))
-        a5, a6 = st.columns(2)
-        a5.metric("Weeks observed", weeks_observed)
-        a6.metric("Weeks since last observed", weeks_since_last)
-        st.caption(
-            "Test-window fields only — no order-level history in the demo artefacts, so "
-            "order dates/counts aren't shown rather than inferred."
-        )
+        st.markdown('<div class="spacer-sm"></div>', unsafe_allow_html=True)
+
+        with st.container(key="about-card"):
+            st.subheader("About this merchant (in test window)")
+            # Only fields already present in the committed demo artefacts --
+            # no order-level "first order"/"total orders" date exists in
+            # demo_test_predictions.csv (checked, not assumed; it's a weekly
+            # panel, not order-level), so those are not fabricated here.
+            # tenure_weeks, category, and week are the stored fields used.
+            category = merchant_rows["category"].iloc[0]
+            first_week = merchant_rows["week"].min()
+            last_week = merchant_rows["week"].max()
+            weeks_observed = len(merchant_rows)
+            dataset_last_week = predictions["week"].max()
+            weeks_since_last = int((dataset_last_week - last_week).days // 7)
+            tenure_at_first = int(merchant_rows["tenure_weeks"].iloc[0])
+
+            a1, a2 = st.columns(2)
+            a1.metric("Category", category)
+            a2.metric(
+                "Merchant tenure",
+                f"{tenure_at_first} wk",
+                help=(
+                    "Weeks since this merchant's first observed order-week, as of the first row "
+                    "of its test-window history (tenure_weeks in the underlying panel) — not "
+                    "recomputed at the selected week."
+                ),
+            )
+            a3, a4 = st.columns(2)
+            a3.metric("First week observed", str(first_week.date()))
+            a4.metric("Last week observed", str(last_week.date()))
+            a5, a6 = st.columns(2)
+            a5.metric("Weeks observed", weeks_observed)
+            a6.metric("Weeks since last observed", weeks_since_last)
+            st.caption(
+                "Test-window fields only — no order-level history in the demo artefacts, so "
+                "order dates/counts aren't shown rather than inferred."
+            )
 
     st.write("")
 
@@ -992,10 +968,10 @@ def _render_merchant_review(
                     "positive worth far more than each false positive costs, not because precision is high."
                 )
 
-    # ---- operating point summary: last on the page, deliberately --
-    # everything above is about the selected merchant; this strip is
-    # population-level test-set evaluation, not merchant-specific
-    # (DECISIONS.md D39) ----
+    # ---- Row 3: operating point summary, full width, last on the page,
+    # deliberately -- everything above is about the selected merchant;
+    # this strip is population-level test-set evaluation, not
+    # merchant-specific (DECISIONS.md D39, D40) ----
     with st.container(key="opstrip-card"):
         st.subheader("Operating point summary (test set)")
         s = st.columns(4)

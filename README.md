@@ -667,18 +667,24 @@ the flag threshold, the selected week, the model's first alarm (dated
 directly on the chart), and — when it falls inside the displayed window
 — the N=8 rule's confirmation date, all marked directly on the chart
 (outside the window, the date is stated in text rather than stretching
-the axis for it, `DECISIONS.md` D37), a stacked cost trade-off /
-simulated policy action / historical-outcome column beside the chart
-(the last rendered as a mini-timeline when the merchant was flagged
-before confirmation, plain text when it wasn't, `DECISIONS.md` D38) —
-the two columns of this row are held to the same height by CSS flexbox
-regardless of which outcome branch renders, not a fixed pixel guess,
-since the two branches are genuinely different lengths (`DECISIONS.md`
-D39). Below that, "what changed since last week" sits beside an "about
-this merchant" panel (~65/35 split) built only from fields already
-present in the demo's artefacts — no order-level dates are shown, since
-none exist in them, rather than inferring one (D37). An operating-point
-summary strip is the very last element on the page, deliberately: it's
+the axis for it, `DECISIONS.md` D37), beside cost trade-off + simulated
+policy action (~60/40 split, Row 1). Below that, "what changed since
+last week" sits beside historical outcome (rendered as a mini-timeline
+when the merchant was flagged before confirmation, plain text when it
+wasn't, `DECISIONS.md` D38) stacked with "about this merchant," built
+only from fields already present in the demo's artefacts — no
+order-level dates are shown, since none exist in them, rather than
+inferring one (D37) (~65/35 split, Row 2). Neither row forces its two
+columns to the same height — each renders at its own natural height,
+since the historical-outcome card's length is conditional
+(flagged-with-mini-timeline vs. plain text) and no fixed relationship
+between the two columns' lengths actually holds; a row's real height is
+just whichever column is taller, and the next row begins immediately
+after in normal document flow (`DECISIONS.md` D40, reverting a D39
+attempt to force-match the columns with CSS flexbox, which was itself
+the cause of a large blank area under the chart once the side it was
+stretched to match ran short). An operating-point summary strip is the
+very last element on the page (Row 3, full width), deliberately: it's
 population-level test-set evaluation, not about the selected merchant,
 and everything above it is (`DECISIONS.md` D39). Built to one hard rule
 throughout: no gauges, no 0-100 risk scores, no red/amber/green threat
