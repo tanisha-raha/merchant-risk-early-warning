@@ -2609,3 +2609,101 @@ large empty card or blank region beneath the trajectory in either
 scenario. `pytest` unaffected (5 passed, no `src/`/`tests/` files
 touched).
 
+### D41 — "What changed since last week" bug: two real defects found by reproduction, not one theorised, plus the truncation question answered from data
+
+Bug report: the chart intermittently renders as an empty/garbled data
+table with the Vega toolbar visible instead of the diverging bar chart,
+and separately, only two features ever seem to show up. Investigated
+both by direct reproduction rather than by inspection alone -- neither
+turned out to be what a first read of the code would suggest.
+
+**What the truncation question actually is.** Checked directly against
+the demo data before touching anything: sampled ~1,200 real
+merchant-week pairs and counted how many of the 37 contribution columns
+actually have a nonzero week-over-week delta. Median: 13. 74% of
+merchant-weeks have ≥5 nonzero deltas; 68% have ≥8. `.head(5)` was
+genuinely truncating real, nonzero movers for most merchants most
+weeks -- this was not "only two features have signal," it was the chart
+cutting off real ones. Fixed two ways together: (1) filter to `delta !=
+0` *before* ranking, so a merchant with only 1-3 real movers shows
+exactly that many bars, not padded with zero-length ones; (2) raise the
+cap from 5 to 8. The caption is now generated from the data rather than
+a fixed sentence: `"All N features that changed this week"` when
+nothing was cut, `"Top 8 of N features that changed this week"` when it
+genuinely was -- so the wording never claims more or less than what
+happened for *this* merchant-week, instead of one sentence trying to be
+true for both cases.
+
+**Bug 1 -- a real, independently-confirmed Vega-Lite rendering defect,
+not a data problem.** `mark_bar(size=20)` (a fixed 20px bar thickness)
+combined with a tight `height = 32 * n_rows` starved the y-axis band
+scale of room once Vega's `autosize: fit` subtracted the legend (~30px)
+and x-axis (~29px) from the total: for small row counts (confirmed at
+n=1-3 specifically; n=5 and n=8 were fine at the old formula) the band
+positions collapsed to nearly the same y-coordinate -- labels overlapping
+into an illegible stack, several hidden entirely by Vega's own
+label-overlap-avoidance (`opacity="0"` in the rendered SVG, confirmed by
+reading the raw markup, not guessed from the screenshot). Reproduced in
+a **minimal standalone Streamlit script outside this app** (a bare
+`mark_bar` + 3-row dataset, no Altair sort, no Streamlit chrome) to
+confirm this was a genuine Vega-Lite behaviour under low row counts and
+tight heights, not something specific to this app's data or the sort
+method -- ruled out a same-named-column collision theory this way too
+(renamed the helper column and the collapse persisted identically).
+This defect became *newly reachable* by the truncation fix above --
+before it, `.head(5)` always produced exactly 5 rows (unfiltered,
+zero-padded), which happens not to trigger it; after filtering to only
+genuinely-changed features, 1-3 row charts are now a normal case and
+would have hit this on real merchants immediately. Fixed with a height
+formula that reserves a flat floor for the legend/axis chrome instead of
+assuming it's free: `height = max(150, 46 * n_rows + 70)` -- checked
+against the exact failure boundary found in the minimal repro, not
+picked to just clear one screenshot.
+
+**Bug 2 -- the originally-reported empty-chart/toolbar-only render,
+best explained but not caught red-handed.** The y-encoding's `sort` was
+a literal Python list of *this render's* feature names
+(`top_movers["feature"].tolist()`), baked as a value-domain into the
+compiled Vega spec. Read Streamlit's own frontend chart component
+source (`ArrowVegaLiteChart`, this installation's exact shipped build)
+directly rather than guessing: on some reruns it patches an existing
+compiled `View`'s *data* in place instead of recompiling the spec, as
+an optimisation. If that happens on a rerun where the merchant or week
+changed, the *old* value-domain from a previous render stays baked into
+the reused view while the *new* dataset's category values arrive --
+categories absent from the stale domain can't be placed on the band
+scale and silently fail to draw, which would present as exactly what
+was reported: axis and toolbar chrome with no visible bars. Extensive
+scripted fuzzing (200+ randomized FAR/merchant/week/range interactions,
+with and without artificial rapid-fire timing, across this session)
+never caught this in the act -- recorded here as a limitation of the
+investigation, not claimed as reproduced. Fixed at the most defensible
+point regardless of whether the mechanism above is the precise trigger:
+(1) `st.altair_chart(..., key=f"changed-chart-{seller_id}-{week}")` --
+an explicit, content-derived key, so Streamlit has no ambiguity about
+when this is logically a *different* chart requiring a fresh view,
+which is Streamlit's own documented mechanism for exactly this
+situation; (2) the y-axis sort changed from a literal value list to
+`alt.EncodingSortField(field="abs", op="max", order="descending")` -- a
+field-based sort Vega-Lite recomputes from whatever data is actually
+present, so even a reused/patched view can't hold a stale domain,
+because there no longer is one baked into the spec. Applied the same
+`key=` to the hazard trajectory chart too (its layer count also varies
+run to run -- alarm/confirmation rules are added conditionally -- the
+identical vulnerability class), as a one-line defensive measure rather
+than leaving a second unkeyed chart carrying the same risk.
+
+Verified: `ruff check app.py` clean. Both `AppTest` scripts re-run in
+full after every substantive edit in this entry -- no exceptions.
+Rendered and screenshotted for real (headless Chromium) across the
+default merchant plus seven others at evenly-spaced positions in the
+merchant list, each at both its first and last test-window week (16
+distinct chart states) -- checked each one's raw SVG markup
+programmatically (not just eyeballed) for row-position spacing and
+`opacity="0"` hidden labels, not just whether *a* chart rendered: zero
+collapsed/hidden labels across all 16, row counts genuinely varying
+(1, 2, 3, 5 confirmed) with captions matching each. The original
+"before" defect (Bug 1, in its milder overlapping-label presentation)
+was captured on the unmodified pre-fix code for direct comparison.
+`pytest` unaffected (5 passed, no `src/`/`tests/` files touched).
+

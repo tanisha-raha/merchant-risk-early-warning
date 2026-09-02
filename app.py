@@ -740,7 +740,13 @@ def _render_merchant_review(
         chart, alarm_drawn, confirm_drawn = hazard_trajectory_chart(
             trail, threshold, row["week"], model_alarm_week, rule_confirm_week
         )
-        st.altair_chart(chart, width="stretch")
+        # Explicit key, same reasoning as the "what changed" chart below
+        # (DECISIONS.md D41): this chart's layer count itself varies
+        # (alarm/confirmation rules are only added when present), so a
+        # stale, patched-in-place Vega view is exactly as risky here.
+        st.altair_chart(
+            chart, width="stretch", key=f"hazard-chart-{seller_id}-{row['week'].date()}-{range_choice}"
+        )
 
         # Compact alarm/confirmation summary strip, always stated as
         # text regardless of whether either marker was drawn on the
@@ -833,38 +839,94 @@ def _render_merchant_review(
                 }
             )
             deltas["abs"] = deltas["delta"].abs()
-            top_movers = (
-                deltas.sort_values("abs", ascending=False).head(5).drop(columns="abs").reset_index(drop=True)
-            )
-            top_movers["direction"] = top_movers["delta"].apply(
-                lambda v: "raises hazard" if v > 0 else "lowers hazard"
-            )
-            zero_rule = alt.Chart(pd.DataFrame({"x": [0]})).mark_rule(color=BORDER, strokeWidth=1).encode(x="x:Q")
-            bars = (
-                alt.Chart(top_movers)
-                .mark_bar(size=20)
-                .encode(
-                    x=alt.X("delta:Q", title="Δ contribution to log-odds score", axis=alt.Axis(grid=False)),
-                    y=alt.Y("feature:N", sort=top_movers["feature"].tolist(), title=None),
-                    color=alt.Color(
-                        "direction:N",
-                        scale=alt.Scale(domain=["raises hazard", "lowers hazard"], range=[ACCENT_WARM, ACCENT]),
-                        legend=alt.Legend(title=None, orient="bottom"),
-                    ),
-                    tooltip=[
-                        alt.Tooltip("feature:N", title="Feature"),
-                        alt.Tooltip("delta:Q", title="Δ contribution", format="+.4f"),
-                    ],
+            # Only features that actually moved -- most of the 37
+            # contribution columns are exactly unchanged week to week for
+            # any given merchant (static fields, or a feature whose input
+            # didn't move), and padding the chart with zero-length bars
+            # for those was never informative (DECISIONS.md D41).
+            changed = deltas[deltas["abs"] > 0].sort_values("abs", ascending=False).reset_index(drop=True)
+            n_changed = len(changed)
+            # Top 8 by magnitude, not top 5 -- checked directly against
+            # the demo data before picking this number: most merchant-weeks
+            # have well over 8 genuinely nonzero deltas, so 5 was
+            # truncating real movers most of the time, not just occasionally
+            # (DECISIONS.md D41). "abs" is kept as a real column (not
+            # dropped) so the chart's own sort can reference it as a data
+            # field below, rather than a value list.
+            top_movers = changed.head(8).reset_index(drop=True)
+
+            if top_movers.empty:
+                st.write("No feature changed for this merchant between these two weeks.")
+            else:
+                top_movers["direction"] = top_movers["delta"].apply(
+                    lambda v: "raises hazard" if v > 0 else "lowers hazard"
                 )
-                .properties(height=32 * len(top_movers))
-            )
-            st.altair_chart(zero_rule + bars, width="stretch")
-            st.caption(
-                "Exact decomposition for this linear model: each feature's contribution is its "
-                "coefficient × standardised value; the deltas above sum to the change in the "
-                "underlying log-odds score, not an approximation. Sorted by magnitude; colour is "
-                "the one signed quantity in this chart, so it's used for meaning, not decoration."
-            )
+                zero_rule = (
+                    alt.Chart(pd.DataFrame({"x": [0]})).mark_rule(color=BORDER, strokeWidth=1).encode(x="x:Q")
+                )
+                bars = (
+                    alt.Chart(top_movers)
+                    .mark_bar(size=20)
+                    .encode(
+                        x=alt.X("delta:Q", title="Δ contribution to log-odds score", axis=alt.Axis(grid=False)),
+                        # Sort by a FIELD in the data (its rank by |delta|),
+                        # not a literal list of this render's feature names.
+                        # A value-list domain gets baked into the compiled
+                        # Vega view; if Streamlit's frontend later patches
+                        # that view's data in place rather than recompiling
+                        # it (an optimisation it takes across some reruns),
+                        # a stale domain from a PREVIOUS merchant/week can
+                        # silently drop bars whose category isn't in it --
+                        # this is one root cause of the bug report. A
+                        # field-based sort recomputes from whatever data is
+                        # actually there, so it self-corrects even if a
+                        # stale view does get reused (DECISIONS.md D41).
+                        y=alt.Y(
+                            "feature:N",
+                            sort=alt.EncodingSortField(field="abs", op="max", order="descending"),
+                            title=None,
+                        ),
+                        color=alt.Color(
+                            "direction:N",
+                            scale=alt.Scale(domain=["raises hazard", "lowers hazard"], range=[ACCENT_WARM, ACCENT]),
+                            legend=alt.Legend(title=None, orient="bottom"),
+                        ),
+                        tooltip=[
+                            alt.Tooltip("feature:N", title="Feature"),
+                            alt.Tooltip("delta:Q", title="Δ contribution", format="+.4f"),
+                        ],
+                    )
+                    # A flat floor plus a generous per-row allowance, not a
+                    # bare 32px/row -- found by direct reproduction, not
+                    # theorised: with very few rows (1-3, now a real case
+                    # since only genuinely-changed features are plotted,
+                    # DECISIONS.md D41) a tight height leaves too little
+                    # room for the legend + x-axis once Vega's "fit"
+                    # autosize subtracts them, and the y band-scale
+                    # collapses nearly all rows onto the same position --
+                    # confirmed in a minimal standalone repro outside this
+                    # app, independent of the data or the sort method.
+                    .properties(height=max(150, 46 * len(top_movers) + 70))
+                )
+                st.altair_chart(
+                    zero_rule + bars,
+                    width="stretch",
+                    # Explicit, content-derived key -- forces Streamlit to
+                    # build a fresh Vega view (not patch a stale one) the
+                    # instant the merchant or week changes, which is what
+                    # the sort-domain staleness above depended on (D41).
+                    key=f"changed-chart-{seller_id}-{row['week'].date()}",
+                )
+                if n_changed <= len(top_movers):
+                    scope = f"All {n_changed} feature{'s' if n_changed != 1 else ''} that changed this week"
+                else:
+                    scope = f"Top {len(top_movers)} of {n_changed} features that changed this week"
+                st.caption(
+                    f"{scope}, sorted by magnitude. Exact decomposition for this linear model: each "
+                    "feature's contribution is its coefficient × standardised value; the deltas above "
+                    "sum to the change in the underlying log-odds score, not an approximation. Colour is "
+                    "the one signed quantity in this chart, so it's used for meaning, not decoration."
+                )
 
     with about_col:
         with st.container(key="outcome-card"):
