@@ -2950,3 +2950,90 @@ version -- unchanged; only the population each is counted over, and
 the paragraph's position, changed. No reason to re-run `AppTest` or
 `pytest`.
 
+### D46 — Opening rewritten to two paragraphs, a demo screenshot added, Section 4's headline sentence de-quotable, deepest audit passages made collapsible
+
+Presentation only -- no number, table, or figure that already existed
+changed; one new figure (a demo screenshot) added, per instruction.
+
+**Opening replaced.** The old "one-line summary" (mechanism failed,
+simpler one works modestly, economic case holds across every parameter
+range) is gone, not softened into the new text -- the economic-holds
+claim still lives in full in Section 4, this was about what the first
+screen shows, not about dropping a finding. Two paragraphs now: what
+was built (one sentence -- panel, hazard model, calibration,
+FAR-controlled alert policy, historical replay, sensitivity analysis,
+on Olist), and the key result (audited 0.89-0.97 AUC down to 0.53-0.59,
+no reliable multi-week advance warning, but 36% of cessations flagged
+earlier than N=8 at a median 2-week acceleration -- an
+inactivity-detection result, not distress prediction). The audit --
+0.89-0.97 collapsing under scrutiny -- stays in the first paragraph a
+reader hits, per instruction, since it's the most distinctive fact in
+the whole document and the previous rewrite pass (D43) had already
+pulled everything else that dense out of the opening.
+
+**Section 4's headline economic sentence reworded.** "The model-based
+policy beats the rule at every false-alarm rate tested" was checked
+against how it reads stripped of its own paragraph -- quotable as an
+unconditional claim, with the cost-model-is-an-assumption caveat
+(Section 2, limitation 2) unable to follow it out of context. Reworded
+to "under the assumed cost model, the simulated model-triggered policy
+has lower estimated cost than the N=8 rule at every tested operating
+point" -- same finding, same numbers, the two load-bearing qualifiers
+("assumed," "simulated," "estimated") now travel with the claim itself
+rather than living three sentences away. Only this one instance changed
+-- the similarly-worded but factually different claims elsewhere
+("beats the naive rule" in Section 3's lead-time discussion, Section
+5's precision discussion, Section 7's per-slice economics) are
+different findings in different contexts, not the same sentence
+repeated, and were left alone.
+
+**Three `<details>` collapsibles added, nothing removed or reworded
+inside them -- verified by diffing the collapsed content against the
+pre-edit text, not just visually checked.** Each was built the same
+way: find the natural sentence boundary in the existing paragraph where
+a short conclusion ends and the audit trail begins, leave the
+conclusion (plus its own local table, already positioned just above it)
+visible, and move everything from that sentence boundary onward into
+`<details>` verbatim -- no sentence was cut, rewritten, or duplicated
+across the boundary.
+
+- Section 4, threshold-transfer check, split in two:
+  "Transfer degrades the operating point 2.4x..." (2 sentences, the
+  finding) stays visible above the TRAIN-derived thresholds table
+  already there; "Mechanism, quantified..." onward (the base-rate-drift
+  explanation and the deployment reading) collapses.
+- Section 4, matched-FAR comparison: "At the one point where the two
+  methods land on essentially the same achieved FAR... [numbers]"
+  stays visible above the merged table already there; "The earlier
+  framing of this check... was wrong" onward (the correction narrative,
+  the four-rows generalisation limit, the closing figure footnote)
+  collapses.
+- Section 5, calibration mechanism: "The safe conclusion is that
+  calibration does not overturn the economic result..." (2 sentences)
+  stays visible above the pre-calibration comparison table already
+  there; "Mechanism: the FAR sweep was never actually
+  probability-weighted..." onward (the isotonic step-function
+  explanation) collapses.
+
+**Screenshot added.** `figures/readme_demo_screenshot.png` -- the
+Merchant review view (nav rail, honesty banner, toolbar, all five
+metric cards, hazard trajectory, cost trade-off, simulated policy
+action) at the default flagged merchant, 5% FAR, 12W range, captured
+from a live `streamlit run app.py` via headless Chromium (the same
+method used for every UI-verification screenshot since D37), cropped
+to the primary above-the-fold content only -- no partial/cut-off card
+at the bottom. Embedded directly under the two new opening paragraphs,
+above the architecture line, per instruction ("near the top, under the
+opening").
+
+**Section 1 untouched, per explicit instruction** -- it states the
+loss category the project targets; Section 2's limitation 1 qualifies
+it as a proxy immediately after. That ordering was confirmed correct,
+not re-examined for a "better" one.
+
+Verified: `README.md` (plus the one new PNG) are the only files this
+entry touches. `<details>`/`<summary>`/`</details>` tag counts balanced
+(3/3/3). Every fact, number, table, and correction inside the three
+collapsibles diffed unchanged against the pre-edit file. No code
+touched; no reason to re-run `AppTest` or `pytest`.
+
