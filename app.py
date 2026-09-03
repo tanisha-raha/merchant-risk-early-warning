@@ -50,6 +50,16 @@ DEFAULT_FAR = 0.05
 RANGE_OPTIONS = {"6W": 6, "12W": 12, "24W": 24, "All": None}
 DEFAULT_RANGE = "12W"
 
+# "What changed since last week" materiality tolerance (DECISIONS.md D42).
+# Picked from the demo artefact's own distribution of week-over-week
+# contribution deltas, not an arbitrary round number: nonzero deltas below
+# ~1e-9 are floating-point noise (identical values recomputed through a
+# slightly different path), the next-smallest genuinely-observed nonzero
+# delta is several orders of magnitude larger (~1e-5), and there's no
+# real data anywhere in that gap -- 1e-6 sits inside it, comfortably
+# above float noise and comfortably below the smallest real signal.
+CONTRIB_DELTA_TOL = 1e-6
+
 # Display order (DECISIONS.md D38): About this project, Method &
 # limitations, Merchant review -- but the landing page on load stays
 # Merchant review regardless of where it sits in this list (see
@@ -839,12 +849,19 @@ def _render_merchant_review(
                 }
             )
             deltas["abs"] = deltas["delta"].abs()
-            # Only features that actually moved -- most of the 37
-            # contribution columns are exactly unchanged week to week for
-            # any given merchant (static fields, or a feature whose input
-            # didn't move), and padding the chart with zero-length bars
-            # for those was never informative (DECISIONS.md D41).
-            changed = deltas[deltas["abs"] > 0].sort_values("abs", ascending=False).reset_index(drop=True)
+            # Only features that actually moved BY MORE THAN FLOATING-POINT
+            # NOISE -- most of the 37 contribution columns are exactly
+            # unchanged week to week for any given merchant (static fields,
+            # or a feature whose input didn't move), and a plain `> 0`
+            # filter let a handful of merchant-weeks through where every
+            # "changed" feature was really a ~1e-16 recomputation artefact,
+            # which rendered as a chart of effectively-invisible bars
+            # (looked like a broken/empty table, not a real result). See
+            # CONTRIB_DELTA_TOL's definition for how that threshold was
+            # picked from this artefact's own data (DECISIONS.md D41, D42).
+            changed = (
+                deltas[deltas["abs"] > CONTRIB_DELTA_TOL].sort_values("abs", ascending=False).reset_index(drop=True)
+            )
             n_changed = len(changed)
             # Top 8 by magnitude, not top 5 -- checked directly against
             # the demo data before picking this number: most merchant-weeks
@@ -856,7 +873,17 @@ def _render_merchant_review(
             top_movers = changed.head(8).reset_index(drop=True)
 
             if top_movers.empty:
-                st.write("No feature changed for this merchant between these two weeks.")
+                # No chart, no dataframe, no empty Vega spec -- a plain
+                # text card matching the rest of the dashboard's own
+                # empty-state language (the "censored merchant" and "no
+                # prior week" branches above use the same bold-line +
+                # caption shape), sized by its own two lines of text, not
+                # forced to the chart's usual height (DECISIONS.md D42).
+                st.markdown("**No material feature changes since last week**")
+                st.caption(
+                    "The model score is effectively unchanged because the underlying feature "
+                    "contributions did not move materially."
+                )
             else:
                 top_movers["direction"] = top_movers["delta"].apply(
                     lambda v: "raises hazard" if v > 0 else "lowers hazard"
@@ -885,6 +912,14 @@ def _render_merchant_review(
                             "feature:N",
                             sort=alt.EncodingSortField(field="abs", op="max", order="descending"),
                             title=None,
+                            # Vega-Lite's own default (100px) is what
+                            # produced truncation as aggressive as "cancel
+                            # rate: insuff..." -- widened so most feature
+                            # names fit in full; the handful of genuinely
+                            # long ones (~50 characters) still truncate,
+                            # but the full name is always in the tooltip
+                            # below regardless (DECISIONS.md D42).
+                            axis=alt.Axis(labelLimit=230),
                         ),
                         color=alt.Color(
                             "direction:N",
@@ -908,8 +943,21 @@ def _render_merchant_review(
                     # app, independent of the data or the sort method.
                     .properties(height=max(150, 46 * len(top_movers) + 70))
                 )
+                chart_obj = (zero_rule + bars).properties(
+                    # Vega-embed's own "actions" toolbar (export/view
+                    # source/open in editor) -- Streamlit's chart component
+                    # forces it on by default, with no Python-level toggle
+                    # for that; usermeta.embedOptions is the one spec-level
+                    # override vega-embed itself respects ahead of that
+                    # default (confirmed by reading the shipped frontend
+                    # bundle, not assumed), so this is Altair/Vega-Lite's
+                    # own supported mechanism, not a CSS hack, and it's
+                    # scoped to this one chart's spec only -- no other
+                    # component on the page is touched (DECISIONS.md D42).
+                    usermeta={"embedOptions": {"actions": False}}
+                )
                 st.altair_chart(
-                    zero_rule + bars,
+                    chart_obj,
                     width="stretch",
                     # Explicit, content-derived key -- forces Streamlit to
                     # build a fresh Vega view (not patch a stale one) the
@@ -1003,7 +1051,23 @@ def _render_merchant_review(
             a4.metric("Last week observed", str(last_week.date()))
             a5, a6 = st.columns(2)
             a5.metric("Weeks observed", weeks_observed)
-            a6.metric("Weeks since last observed", weeks_since_last)
+            # Renamed from "Weeks since last observed" -- the calculation
+            # is dataset_last_week (the panel's own final week, the same
+            # for every merchant) minus THIS merchant's last observed
+            # week, not anything relative to the week selected above.
+            # Verified against the calculation, not assumed, before
+            # picking wording (DECISIONS.md D42).
+            a6.metric(
+                "Weeks short of panel end",
+                weeks_since_last,
+                help=(
+                    "Weeks between this merchant's own last observed week in the test panel "
+                    f"({last_week.date()}) and the last week covered anywhere in the panel "
+                    f"({dataset_last_week.date()}) — the same panel-end date for every merchant, "
+                    "independent of the week selected above. 0 means this merchant was still "
+                    "observed at the very end of the panel."
+                ),
+            )
             st.caption(
                 "Test-window fields only — no order-level history in the demo artefacts, so "
                 "order dates/counts aren't shown rather than inferred."

@@ -2707,3 +2707,84 @@ collapsed/hidden labels across all 16, row counts genuinely varying
 was captured on the unmodified pre-fix code for direct comparison.
 `pytest` unaffected (5 passed, no `src/`/`tests/` files touched).
 
+### D42 — Polish pass on "What changed since last week": a materiality tolerance, a genuine empty state, wider labels, no chart chrome, and one metric label corrected
+
+Explicitly scoped as edge-case/presentation fixes, not a redesign --
+layout, sidebar order, title, disclaimer, controls, metric cards,
+trajectory chart, cost/policy/outcome cards, and every other section
+are untouched (checked against the full diff before committing, not
+just assumed from memory of what was edited).
+
+**The zero-material-change state was never actually a chart-rendering
+bug -- it was a threshold bug.** D41's `> 0` filter treated a delta of
+`9.7e-17` (a floating-point recomputation artefact, not a real change)
+as equally "changed" as a delta of `3.6` (Review score moving
+substantially). Checked directly against the artefact's full
+distribution of nonzero deltas before picking a fix rather than
+guessing a tolerance: below ~1e-9 is float noise (169 instances across
+the whole test set), the smallest genuinely-observed real delta is
+~1e-5, and nothing at all falls in between -- `CONTRIB_DELTA_TOL = 1e-6`
+sits in that gap. Below that tolerance, the merchant-week now renders a
+plain two-line card ("No material feature changes since last week" /
+explanatory caption) matching the exact shape the dashboard already
+uses for its other empty states (the "censored merchant" and "no prior
+week" branches in the same section) -- no chart, no dataframe, no empty
+Vega spec, sized by its own text rather than any forced height. No
+merchant-week in the committed demo artefact actually reaches this
+state (checked exhaustively, not assumed), so it was verified with a
+synthetic reproduction in an **isolated scratch copy** of the data --
+the tracked `figures/demo_test_predictions.csv` was never written to;
+confirmed by MD5 before and after. Set up as its own `figures/`+`config/`
+directory the app was pointed at via its working directory, one
+merchant's final week's contribution columns forced identical to the
+prior week's, screenshotted, then discarded -- the real artefact was
+read-only for the entire exercise.
+
+**Labels widened, not eliminated as an idea.** Vega-Lite's own default
+`labelLimit` (100px) is what produced "cancel rate: insuff..." --
+raised to 230px, which fits every feature name up to ~38 characters in
+full (the large majority) and still truncates the genuine outliers
+(~46-50 characters, e.g. "Top-buyer revenue concentration
+(acceleration)") more gracefully than before. The full name was
+already available on hover before this change -- the bar mark's
+tooltip encodes the `feature` data field directly, independent of how
+the axis renders it -- confirmed via the rendered SVG's `aria-label`
+attributes (which mirror the tooltip content) showing full untruncated
+names for a truncated row, since a reliable headless-mouse-hover
+screenshot proved as fiddly here as it did in D41.
+
+**Chart chrome removed via a real Altair mechanism, not CSS.** Read
+Streamlit's own shipped frontend bundle (not assumed, not guessed):
+`ArrowVegaLiteChart` passes `forceActionsMenu: true` to vega-embed for
+every chart, but vega-embed itself merges `spec.usermeta.embedOptions`
+*after* and *over* that default (confirmed by reading the exact merge
+order in the bundle) -- so `chart.properties(usermeta={"embedOptions":
+{"actions": False}})` is a genuine Altair/Vega-Lite-level override, not
+a workaround. Verified in the browser: the `<details>`/`<summary>`
+actions element and the `has-actions` CSS class are both absent from
+this chart's rendered DOM entirely, while the hazard trajectory chart
+(untouched, out of this task's scope) still has them. Scoped to this
+one chart's own spec -- no selector, global CSS, or other component
+touched.
+
+**"Weeks since last observed" renamed to "Weeks short of panel end."**
+Read the calculation before choosing wording, not after: `predictions["week"].max()`
+(the single last week covered anywhere in the whole test panel, the
+same value for every merchant) minus *this merchant's own* last
+observed week. That's unrelated to the week selected in the toolbar --
+the old label's "since" could be misread as measuring from the
+selected week, which it never did. Value and calculation both
+untouched; only the label and a new `help=` tooltip stating the exact
+definition (both weeks it's built from, and that it doesn't depend on
+the selected week) were added.
+
+Verified: `ruff check app.py` clean. Both existing `AppTest` scripts
+re-run in full -- no exceptions. Screenshotted for real (headless
+Chromium) against every scenario in the instruction's own checklist:
+multiple-feature (3 real merchants: 3, 1, and 8 changed features),
+single-feature, the synthetic all-zero-material-delta case, a flagged
+merchant, an unflagged merchant, FAR at 5%/1%/10%, and the 6W/12W
+trajectory ranges -- all inspected visually before committing, per
+instruction. `pytest` unaffected (5 passed, no `src/`/`tests/` files
+touched).
+
