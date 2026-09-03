@@ -2788,3 +2788,58 @@ trajectory ranges -- all inspected visually before committing, per
 instruction. `pytest` unaffected (5 passed, no `src/`/`tests/` files
 touched).
 
+### D43 — README density pass: "Interactive demo" cut from a revision log to ~150 words, Sections 3-5 restructured findings-first, no fact removed
+
+`app.py`/`src/`/`figures/` untouched -- this is prose only, on
+`README.md`.
+
+**"Interactive demo" section rewritten from ~650 words to ~155.** The
+prior version was substantively a revision log -- nearly every clause
+carried a `DECISIONS.md` reference describing what an earlier version
+of the app did and why it changed (D33 vs. D37's restructuring, D39's
+reverted flexbox attempt, D30/D31's threshold-label back-and-forth).
+That belongs in `DECISIONS.md`, where it already lives in full (D32-D42
+has it); it does not need a second, less complete copy in the README.
+Replaced with four things only: what the demo shows, the one hard
+design rule (no risk grading; two accents, fixed meanings), the honesty
+banner plus the one-click-away disclosures, and the run instructions --
+one citation, at the end, to where the full history actually is.
+
+**Sections 3-5 restructured so the finding comes before the
+qualification, not interleaved with it -- no limitation, negative
+result, or correction removed; checked against the diff, not assumed.**
+Section 3's footnote 2 was the specific complaint (D-references and
+"checked directly, not assumed"-style asides breaking up a sentence
+before it finished making its point) -- rewritten to state the achieved
+FAR (5.9%), the transfer-check result (12.0%, 2.4x degradation), and
+the correction (matched-FAR economics are the same; not a better
+number to lead with) in that order, with the mechanism and citations
+following each fact rather than preceding it. Section 4 had the same
+pattern in three places (the table footnote re-explaining the same
+isotonic-tie-plateau mechanism footnote 2 already covers in full, and
+two paragraphs that posed a question before giving the already-known
+answer) -- the table footnote now states the fact and points to Section
+3's footnote for the mechanism instead of repeating it, and both
+question-then-answer paragraphs now lead with the answer. Section 5's
+calibration-mechanism paragraph had its conclusion ("calibration does
+not overturn the result; the magnitude should be read with caution")
+sitting *after* the mechanism that explains it -- swapped, so the
+mechanism now reads as support for a conclusion already stated, not a
+preamble to one still coming.
+
+**One fact restored, not added:** the "note on which numbers are which"
+paragraph after footnote 2 has always cited a 67%/27%/6% train-derived
+split as living "in footnote 2" -- checked against the actual footnote
+text before rewriting it, and that split was not there (a citation gap
+from an earlier revision, `DECISIONS.md` D30/D31's history has the
+number, `git log` on this file would show when it dropped out). Since
+footnote 2 was already being rewritten, and the number is real and
+already documented elsewhere, restoring it there is a fact staying, not
+a new one appearing -- the cross-reference now resolves correctly for
+the first time in this document's tracked history.
+
+Verified: every number, percentage, and table in Sections 3-5 diffed
+against the pre-edit version and confirmed unchanged except the one
+restoration above. `README.md` is the only file this entry touches --
+no reason to re-run `AppTest` or `pytest`.
+

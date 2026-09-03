@@ -148,27 +148,23 @@ flagged." The equivalent seller-level rate at this operating point is
 is row-level unless labelled otherwise.*
 
 ² *This threshold is a quantile of the TEST set's own censored-row
-scores — not independently validated, but it is what this document leads
-with, and here is why (`DECISIONS.md` D29–D31; Section 4 has the full
-numbers). Checked directly rather than assumed: it does not land on
-exactly 5% even on the population it was quantiled from — the achieved
-figure is **5.9%** — because isotonic calibration collapses scores into
-~46 discrete levels (the same tie-plateau mechanism D21/D23 document for
-precision), and a quantile cut lands on one of those levels rather than
-exactly on an arbitrary target. A separate check asked whether a
-threshold chosen from TRAIN data only, then applied unchanged to test,
-would land close to this one — i.e. whether this operating point would
-survive being inherited rather than recalibrated. It does not: the
-TRAIN-derived threshold achieves **12.0%**, not 5%, on test — a 2.4x
-transfer degradation, driven by the row-level event rate itself drifting
-0.53% (train) → 0.68% (test). That is a real deployment caveat (Section
-4 states it as one), not a better number to lead with — at matched
-achieved FAR the two methods turn out to give substantially the same
-economics anyway (Section 4's matched-FAR table), so the apparent size
-of the train-derived "improvement" was a looser threshold in disguise,
-not a better method. Corrected here after an earlier draft of this
-section briefly led with the train-derived number before that check was
-run (`DECISIONS.md` D30, D31).*
+scores, not independently validated. Achieved row-level FAR at it is
+**5.9%**, not exactly 5%, because isotonic calibration collapses scores
+into ~46 discrete levels (the same tie-plateau mechanism D21/D23
+document for precision) and a quantile cut lands on the nearest level,
+not an arbitrary target. A threshold chosen from TRAIN data only and
+applied unchanged to test achieves **12.0%**, not 5% — a 2.4x transfer
+degradation, driven by the row-level event rate itself drifting 0.53%
+(train) → 0.68% (test); at its own achieved FAR that TRAIN-derived
+threshold beats the rule for 67% of cessations, no benefit for 27%, a
+same-week tie for 6%. That is a real deployment caveat, not a better
+number to lead with: at matched achieved FAR the two methods give
+substantially the same economics (Section 4's matched-FAR table), so
+the apparent size of the train-derived "improvement" was a looser
+threshold in disguise, not a better method. This document leads with
+the TEST-derived threshold throughout; an earlier draft briefly led
+with the TRAIN-derived number before that check was run (`DECISIONS.md`
+D29–D31; Section 4 has the full numbers).*
 
 *A note on which numbers are which, stated once here and not repeated as
 a caveat everywhere below: this 36%/58%/6% split is on the calibrated
@@ -187,25 +183,22 @@ Section 4, not here.*
 
 ![Model vs. the operational baseline: what happens to all 237 test-period cessations](figures/readme_model_vs_rule.png)
 
-The brief's original plan for this section was a comparison against four
-baselines (flat reserve, category-based, tenure-based, a binary
-classifier with no survival treatment). **That comparison was not built
-this round** — scoped out explicitly in favour of finishing the
-diagnostics above properly rather than rushing it (Section 8 has the
-follow-up plan). What *was* built, and is the one comparison this
-document can actually stand behind: the model-triggered early-reserve
-policy against the naive N=8-week silence rule itself, which is the
-rule any of those four baselines would have to beat too, and the one
-already running today in this problem's static-reserve framing.
+This section compares the model-triggered early-reserve policy against
+the naive N=8-week silence rule — the rule any baseline would have to
+beat, and the one already running today in this problem's
+static-reserve framing. The brief's original plan called for four
+baselines too (flat reserve, category-based, tenure-based, a binary
+classifier with no survival treatment); that comparison was scoped out
+this round in favour of finishing the diagnostics above properly
+(Section 8 has the follow-up plan).
 
 Swept the row-level false-alarm rate from 1% to 10% and priced both
-sides in R$ per 1,000 merchant-weeks, **on the calibrated model**
-(`DECISIONS.md` D21, D26 — this project's operating configuration; the
-pre-calibration numbers are in Section 5, clearly labelled, not here):
-the model-based policy beats the rule **at every false-alarm rate
-tested**, and the margin widens as the rate loosens — from
--R$16.50/1,000 merchant-weeks at 1% FAR to -R$155.33/1,000 merchant-weeks
-at 10% FAR (negative = the model saves money).
+sides in R$ per 1,000 merchant-weeks, on the calibrated model: **the
+model-based policy beats the rule at every false-alarm rate tested**,
+and the margin widens as the rate loosens — from -R$16.50/1,000
+merchant-weeks at 1% FAR to -R$155.33/1,000 merchant-weeks at 10% FAR
+(negative = the model saves money; pre-calibration numbers are in
+Section 5, `DECISIONS.md` D21, D26).
 
 | nominal FAR | achieved row-level FAR* | events accelerated | net Δcost / 1,000 merchant-weeks | seller-level FAR |
 |---:|---:|---:|---:|---:|
@@ -213,37 +206,32 @@ at 10% FAR (negative = the model saves money).
 | 5% | 5.9% | 85/237 | -R$98.03 | 19.4% |
 | 10% | 12.0% | 158/237 | -R$155.33 | 36.9% |
 
-*\*Not exactly the nominal target even though this threshold IS a
-quantile of this exact test population — checked directly, an assumption
-corrected once verified, not asserted (`DECISIONS.md` D30). Isotonic
-calibration collapses raw scores into ~46 discrete levels (the same
-tie-plateau mechanism D21/D23 already document for non-monotonic
-precision); a quantile cut lands on one of those 46 values, and "≥ that
-value" sweeps in the whole tied block at it, which does not usually sum
-to exactly the requested fraction. Close, not exact — the nominal label
-is still how this table and the rest of the document refer to each row.*
+*\*Achieved FAR isn't exactly the nominal target even though the
+threshold is a quantile of this exact test population — isotonic
+calibration's ~46 discrete levels mean a quantile cut lands on the
+nearest one, not an arbitrary target (mechanism in Section 3, footnote
+2; `DECISIONS.md` D30). Close, not exact; the nominal label is still
+how this table and the rest of the document refer to each row.*
 
-**A related, more consequential question about this same table: would
-these thresholds still be close to their targets on a different slice
-of time, or were they only ever this close because they were quantiled
-from the test set they're evaluated on?** Checked below, not assumed —
-skip to *"Threshold-transfer robustness check"* at the end of this
-section for the answer (short version: no — a threshold set once and
-never recalibrated degrades 2.4x at the 5% target, which is a reason to
-recalibrate periodically in deployment, not just a footnote).
+These thresholds are quantiles of the test set they're evaluated on —
+checked below, not assumed, whether that same closeness would hold on a
+different slice of time. Short answer: no, a threshold set once and
+never recalibrated degrades 2.4x at the 5% target (full check:
+*"Threshold-transfer robustness check,"* below) — a reason to
+recalibrate periodically in deployment, not just a footnote.
 
 **That result is far more robust than it has any right to look, given
-Section 3's near-null discrimination — checked, not assumed**
-(`DECISIONS.md` D17, `figures/phase4_tornado.png`). The breakeven value
-of `benefit_capture_rate` (how much of the extra reserve actually offsets
-a loss) is 2.3%–5.7% across the sweep, against a config default of 100%.
+Section 3's near-null discrimination.** The breakeven value of
+`benefit_capture_rate` (how much of the extra reserve actually offsets a
+loss) is 2.3%–5.7% across the sweep, against a config default of 100%.
 The breakeven `working_capital_cost_weekly_rate` is 322%–803%
 *annualised*, against a config default of ~18%. Neither is remotely
 plausible — reserve is money the aggregator already withheld from the
-merchant's own settlement, not a debt that needs collecting, so near-full
-capture is structurally the realistic end of that parameter, not the
-optimistic one. A tornado plot across generous, honestly-wide ranges
-picked before seeing where breakeven fell never crosses zero.
+merchant's own settlement, not a debt that needs collecting, so
+near-full capture is structurally the realistic end of that parameter,
+not the optimistic one. A tornado plot across generous, honestly-wide
+ranges picked before seeing where breakeven fell never crosses zero
+(`DECISIONS.md` D17, `figures/phase4_tornado.png`).
 
 *This sensitivity analysis (D17) was run on the pre-calibration sweep
 (D16) and has not been re-run on the calibrated numbers above — flagged
@@ -257,15 +245,15 @@ expectation, not a checked number, and shouldn't be read as one.*
 
 ### Threshold-transfer robustness check: what if this threshold were inherited, not recalibrated?
 
-Every threshold above is a quantile of the *test set's own* censored-row
-scores — the right way to report this project's evaluated result, but
-not a check of whether that specific threshold *value* would still make
-sense on a different slice of time. Checked directly rather than left
-implicit (`DECISIONS.md` D29–D31): derive thresholds from **TRAIN**
-censored rows only, at the same nominal 1%/5%/10% targets, apply them
-unchanged to test, and see what FAR they actually achieve there — the
-scenario a real deployment would face if a threshold were set once from
-historical data and never recalibrated.
+Derived thresholds from **TRAIN** censored rows only, at the same
+nominal 1%/5%/10% targets, applied them unchanged to test, and measured
+what FAR they actually achieve there — the scenario a real deployment
+would face if a threshold were set once from historical data and never
+recalibrated (`DECISIONS.md` D29–D31). Every threshold in the table
+above this one is a quantile of the *test set's own* scores instead —
+the right way to report this project's evaluated result, but not a
+check of whether that threshold *value* would still make sense on a
+different slice of time.
 
 | nominal FAR | threshold | achieved row-level FAR | achieved seller-level FAR | events accelerated | net Δcost / 1,000mw |
 |---:|---:|---:|---:|---:|---:|
@@ -287,13 +275,12 @@ that is a real operational risk this project would flag to anyone
 deploying it — thresholds need periodic recalibration against recent
 data, not a one-time fit.
 
-**Does the loosened threshold actually mean the transfer method is
-*better*, though — or just that it's operating at a different, looser
-FAR than the table above it?** Checked, not assumed: the table below
-merges all six thresholds computed above (three test-derived, three
-train-derived) and sorts by *achieved* row-level FAR instead of nominal
-target, so origins land next to whichever one they actually resemble on
-the population that matters.
+Whether that loosened threshold is a genuine improvement, or just a
+different, looser FAR, is checked directly below: the table merges all
+six thresholds computed above (three test-derived, three train-derived)
+and sorts by *achieved* row-level FAR instead of nominal target, so
+origins land next to whichever one they actually resemble on the
+population that matters.
 
 | achieved row-level FAR | origin | nominal target | events accelerated | net Δcost / 1,000mw | precision | recall |
 |---:|---|---:|---:|---:|---:|---:|
@@ -305,17 +292,17 @@ the population that matters.
 | 15.6% | train-derived | 10% | 207/237 | -R$189.60 | 3.8% | 94.9% |
 
 **At the one point where the two methods land on essentially the same
-achieved FAR (12.0%, bolded), they give essentially the same economics —
-checked, not assumed:** net Δcost -R$155.3304 (test-derived, nominal
-10%) vs. -R$155.3255 (train-derived, nominal 5%), a R$0.005/1,000mw
-difference; identical events accelerated (158/237); recall identical to
-four decimal places (70.0422%); precision within 0.01 points (3.6848% vs.
-3.6766%). **The earlier framing of this check — that train-derived
-numbers looked better, so they should lead — was wrong, and this table
-is why:** the apparent improvement at nominal 5% was the same model
-operating at a substantially looser threshold, not a better
-threshold-selection method. Origin doesn't move the economics once FAR
-is held fixed; only FAR does. The other four rows don't have a
+achieved FAR (12.0%, bolded), they give essentially the same
+economics:** net Δcost -R$155.3304 (test-derived, nominal 10%) vs.
+-R$155.3255 (train-derived, nominal 5%), a R$0.005/1,000mw difference;
+identical events accelerated (158/237); recall identical to four
+decimal places (70.0422%); precision within 0.01 points (3.6848% vs.
+3.6766%). The earlier framing of this check — that train-derived
+numbers looked better, so they should lead — was wrong: the apparent
+improvement at nominal 5% was the same model operating at a
+substantially looser threshold, not a better threshold-selection
+method. Origin doesn't move the economics once FAR is held fixed; only
+FAR does. The other four rows don't have a
 close cross-origin match — this project computed three thresholds per
 origin, not a dense grid, so most achieved-FAR bands are only covered by
 one method or the other. That is a real limit on how far this check
@@ -369,19 +356,20 @@ appear:
 | 5% | -R$74.29 | -R$98.03 |
 | 10% | -R$142.25 | -R$155.33 |
 
-The mechanism, worked out after seeing the result: the FAR sweep was
-never actually probability-weighted (cost and benefit are both computed
-from realised outcomes, using the score only to rank rows
-against a threshold), so a monotonic recalibration should have been close
-to a no-op — it wasn't exactly, because isotonic regression is a step
-function and real data produces ties at its plateaus, which shifted which
-rows cleared each quantile threshold in discrete jumps rather than
-smoothly. **The safe conclusion is that calibration does not overturn the
-economic result. The specific size of "how much better" should be read
-with caution** — it depends on where quantile cutoffs happen to land
-relative to those tie plateaus, a more sensitive dependency on
-implementation detail than the headline number suggests. A smoother
-calibrator (Platt scaling) is the natural follow-up, not attempted here.
+**The safe conclusion is that calibration does not overturn the
+economic result; the specific size of "how much better" should be read
+with caution.** Mechanism: the FAR sweep was never actually
+probability-weighted (cost and benefit are both computed from realised
+outcomes, using the score only to rank rows against a threshold), so a
+monotonic recalibration should have been close to a no-op — it wasn't
+exactly, because isotonic regression is a step function and real data
+produces ties at its plateaus, which shifted which rows cleared each
+quantile threshold in discrete jumps rather than smoothly. That
+plateau-dependency — where quantile cutoffs happen to land relative to
+the ties — is a more sensitive dependency on implementation detail than
+the headline number suggests, which is the reason for the caution
+above. A smoother calibrator (Platt scaling) is the natural follow-up,
+not attempted here.
 
 **Precision and recall, calibrated model, held-out test window** — stated
 directly, not only implied through AUC, calibration, lead time, and cost
@@ -649,102 +637,31 @@ rather than Olist's e-commerce proxy:
 
 ## Interactive demo
 
-`app.py` ("Merchant Reserve Decision Engine," a "Research demo" tag
-beside the title, `DECISIONS.md` D38 — an explicit, later revision of
-D37's original "keep the app name unchanged" instruction, recorded as a
-reversal there, not applied silently) is a Streamlit demonstration of
-the decision this project evaluated. A left navigation rail (About this
-project / Method & limitations / Merchant review, in that display order
-— page destinations only, not a control panel; no logo, no invented
-product branding, `DECISIONS.md` D37/D38; Merchant review is still the
-default landing page regardless of its position in that list) sits
-beside a compact top toolbar (FAR / merchant / week — no permanent
-sidebar of controls, `DECISIONS.md` D36). Merchant review shows five
-equal-weight per-merchant metrics (calibrated hazard, flag status as a
-small state pill, current threshold, average weekly GMV, seller FAR), a
-hazard trajectory over a selectable 6/12/24-week or full window with
-the flag threshold, the selected week, the model's first alarm (dated
-directly on the chart), and — when it falls inside the displayed window
-— the N=8 rule's confirmation date, all marked directly on the chart
-(outside the window, the date is stated in text rather than stretching
-the axis for it, `DECISIONS.md` D37), beside cost trade-off + simulated
-policy action (~60/40 split, Row 1). Below that, "what changed since
-last week" sits beside historical outcome (rendered as a mini-timeline
-when the merchant was flagged before confirmation, plain text when it
-wasn't, `DECISIONS.md` D38) stacked with "about this merchant," built
-only from fields already present in the demo's artefacts — no
-order-level dates are shown, since none exist in them, rather than
-inferring one (D37) (~65/35 split, Row 2). Neither row forces its two
-columns to the same height — each renders at its own natural height,
-since the historical-outcome card's length is conditional
-(flagged-with-mini-timeline vs. plain text) and no fixed relationship
-between the two columns' lengths actually holds; a row's real height is
-just whichever column is taller, and the next row begins immediately
-after in normal document flow (`DECISIONS.md` D40, reverting a D39
-attempt to force-match the columns with CSS flexbox, which was itself
-the cause of a large blank area under the chart once the side it was
-stretched to match ran short). An operating-point summary strip is the
-very last element on the page (Row 3, full width), deliberately: it's
-population-level test-set evaluation, not about the selected merchant,
-and everything above it is (`DECISIONS.md` D39). Built to one hard rule
-throughout: no gauges, no 0-100 risk scores, no red/amber/green threat
-levels, no alert icons, no categorical risk labels ("HIGH RISK" etc.) —
-exactly two accents, each with one fixed meaning, used everywhere the
-model's signal direction appears: orange for positive/increasing
-signal (flag on, a feature that raises hazard), blue for
-negative/decreasing signal (flag off, a feature that lowers hazard) —
-never a severity gradient, never a third colour (`DECISIONS.md` D32,
-D36-D39). No number or piece of logic on the page has changed across
-any of its visual design passes, only how it's presented. The
-operating-point summary states the row-level FAR as target and achieved
-separately ("5% target, 5.9% achieved," reading the achieved figure
-from the same artefact this document's Section 4 table reads — an
-earlier version showed only the nominal target, contradicting Section
-4's own methodology, fixed in `DECISIONS.md` D34) plus the equivalent
-seller-level rate (Section 3's footnote), flagged rows, true events, and
-precision/recall (`DECISIONS.md` D33, D35, D37). It is a presentation of
-the results already reported above, not a new analysis and not a
-production system.
+`app.py` is a Streamlit walkthrough of the decision this project
+evaluated: it shows a merchant's hazard trajectory, flag status, cost
+trade-off, simulated reserve action, and historical outcome, plus a
+population-level operating-point summary, built entirely from the
+pre-computed artefacts behind Sections 3–5 — no fitting, scoring, or
+sweeping at runtime, no new analysis introduced.
 
-**Structure (`DECISIONS.md` D33, restructured again in D37): the
-merchant view is the primary content, one short banner states the
-single most important honesty check, and the full disclosures are one
-click away in the left nav, not stacked above everything else.** A
-short top banner — the model detects a seller already gone quiet,
-faster than the naive rule, it does not predict distress weeks in
-advance — is always visible on the primary view and points to "Method &
-limitations." That destination holds, unabridged, the same three checks
-this demo has always required: the full "what this model actually does"
-statement, the dynamic outcomes breakdown at whichever FAR is selected
-(the minority-benefit acceleration result, Sections 3/4), and the
-top-decile calibration caveat (Section 5) — nothing removed, nothing
-softened, one click away. The "Simulated policy action" panel is
-explicit that the model determines only the flag; the reserve percentage
-applied when flagged is a fixed `config/costs.yaml` assumption, not
-something the model sizes (Section 2, limitation 2).
+One hard rule throughout: no gauges, no 0–100 risk scores, no
+red/amber/green severity, no alert icons, no "HIGH RISK" labels.
+Exactly two accent colours, each with one fixed meaning — orange for a
+positive/increasing model signal, blue for a negative/decreasing one —
+never a severity gradient.
 
-**Gap flagged in D30, confirmed closed rather than left stale (`DECISIONS.md`
-D31):** the demo reports the test-derived thresholds (36%/58%/6% at
-nominal 5% FAR), which is again what Sections 3-4 lead with — a
-train-derived alternative briefly displaced it as the headline and was
-reverted once checked further (D31). The demo was never rebuilt against
-that train-derived number, so it needed no change back and was never
-actually inconsistent for longer than one revision.
+A short banner on every screen states the model's actual capability —
+it detects a seller that has already gone quiet, faster than the naive
+rule, not distress weeks in advance. The full disclosures (what the
+model does, the outcomes breakdown, the calibration caveat) are
+unabridged, one click away under "Method & limitations."
 
 **Run it:**
 
 ```bash
 pip install -r requirements.txt
-python src/prepare_demo_data.py   # one-time: materialises figures/demo_*.csv
-                                   # from the already-fitted model + calibrator (D21) --
-                                   # reuses existing functions, no new modeling
+python src/prepare_demo_data.py   # one-time: builds figures/demo_*.csv from the fitted model
 streamlit run app.py
 ```
 
-`app.py` itself reads only pre-computed files (`figures/demo_*.csv`,
-`figures/phase3_far_sweep.csv`, `figures/phase4_calibrated_sweep.csv`,
-`figures/phase4_precision_recall.csv`, `config/costs.yaml`) — it does not
-fit, score, or sweep anything at runtime. `src/prepare_demo_data.py` is
-deliberately **not** part of `run.sh`: `run.sh` is the reproducibility
-path for every number in this document, and stays that way; the demo is
-a separate, optional artefact with its own one-time setup step.
+Full design history: `DECISIONS.md` D32–D40.
