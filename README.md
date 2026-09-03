@@ -4,13 +4,6 @@
 failed, a simpler one works modestly, and the economic case holds
 across every parameter range tested.
 
-Reproduce every number in this document with `./run.sh` (lint, tests,
-then every phase's scripts, in order). Individual scripts are documented
-in `DECISIONS.md`, referenced by entry number (`D1`, `D17`, …) throughout
-this README — that file has the full reasoning behind every choice
-mentioned here; `FAILURES.md` has the dead ends, including the ones that
-turned out to matter (D14 §3, D21).
-
 **Architecture, end to end:** Olist orders → weekly merchant panel →
 leakage-safe features → discrete-time hazard model → isotonic
 calibration → FAR threshold → merchant flag → simulated reserve policy →
@@ -149,17 +142,19 @@ is row-level unless labelled otherwise.*
 
 ² *This threshold is a quantile of the TEST set's own censored-row
 scores, not independently validated. Achieved row-level FAR at it is
-**5.9%**, not exactly 5%, because isotonic calibration collapses scores
-into ~46 discrete levels (the same tie-plateau mechanism D21/D23
-document for precision) and a quantile cut lands on the nearest level,
-not an arbitrary target. A threshold chosen from TRAIN data only and
-applied unchanged to test achieves **12.0%**, not 5% — a 2.4x transfer
-degradation, driven by the row-level event rate itself drifting 0.53%
-(train) → 0.68% (test); at its own achieved FAR that TRAIN-derived
-threshold beats the rule for 67% of cessations, no benefit for 27%, a
-same-week tie for 6%. That is a real deployment caveat, not a better
-number to lead with: at matched achieved FAR the two methods give
-substantially the same economics (Section 4's matched-FAR table), so
+**5.9%**, not exactly 5%, because isotonic calibration collapses the
+censored-seller population's scores into ~46 discrete levels — a
+different, smaller population than Section 5's precision discussion
+uses (footnote 1 there), not an inconsistent count of the same one —
+and a quantile cut lands on the nearest level, not an arbitrary target.
+A threshold chosen from TRAIN data only and applied unchanged to test
+achieves **12.0%**, not 5% — a 2.4x transfer degradation, driven by the
+row-level event rate itself drifting 0.53% (train) → 0.68% (test); at
+its own achieved FAR that TRAIN-derived threshold beats the rule for
+67% of cessations, no benefit for 27%, a same-week tie for 6%. That is
+a real deployment caveat, not a better number to lead with: at matched
+achieved FAR the two methods give substantially the same economics
+(Section 4's matched-FAR table), so
 the apparent size of the train-derived "improvement" was a looser
 threshold in disguise, not a better method. This document leads with
 the TEST-derived threshold throughout; an earlier draft briefly led
@@ -207,9 +202,10 @@ Section 5, `DECISIONS.md` D21, D26).
 | 10% | 12.0% | 158/237 | -R$155.33 | 36.9% |
 
 *\*Achieved FAR isn't exactly the nominal target even though the
-threshold is a quantile of this exact test population — isotonic
-calibration's ~46 discrete levels mean a quantile cut lands on the
-nearest one, not an arbitrary target (mechanism in Section 3, footnote
+threshold is a quantile of this exact censored-seller population —
+isotonic calibration collapses it into ~46 discrete levels, so a
+quantile cut lands on the nearest one, not an arbitrary target
+(mechanism and the population it's counted over in Section 3, footnote
 2; `DECISIONS.md` D30). Close, not exact; the nominal label is still
 how this table and the rest of the document refer to each row.*
 
@@ -392,11 +388,15 @@ FAR:
 directly: it's non-monotonic on the raw, uncalibrated scores too
 (0.9%→4.1%→3.9%), so it isn't purely a calibration artefact — the
 model's ranking itself isn't perfectly precision-ordered across this
-range. Isotonic calibration makes it more visible: it collapses 31,442
-distinct raw scores into just 50 calibrated levels (the same tie-plateau
-mechanism as D21), so each threshold draws from one of a handful of
-discrete blocks of rows whose composition can differ by chance rather
-than shifting smoothly.*
+range. Isotonic calibration makes it more visible: across the full test
+window (all 34,853 rows, not just the censored-seller population
+Sections 3-4's FAR thresholds are quantiled from — that narrower
+population collapses to ~46 levels, this one to 50, both verified
+directly against the artefact, not the same count restated), it
+collapses 31,442 distinct raw scores into just 50 calibrated levels
+(the same tie-plateau mechanism as D21), so each threshold draws from
+one of a handful of discrete blocks of rows whose composition can
+differ by chance rather than shifting smoothly.*
 
 **Precision is poor in absolute terms — 3.5–4.2%, meaning roughly one in
 25 flags is a real cessation — and that is reported plainly, not dressed
@@ -629,6 +629,13 @@ rather than Olist's e-commerce proxy:
   not built this round since it wasn't in this phase's scope, and now
   informed by evidence (the model has near-zero net effect on this group
   either way) rather than the assumption that motivated asking for it.
+
+Reproduce every number in this document with `./run.sh` (lint, tests,
+then every phase's scripts, in order). Individual scripts are documented
+in `DECISIONS.md`, referenced by entry number (`D1`, `D17`, …) throughout
+this README — that file has the full reasoning behind every choice
+mentioned here; `FAILURES.md` has the dead ends, including the ones that
+turned out to matter (D14 §3, D21).
 
 ## Interactive demo
 

@@ -2892,3 +2892,61 @@ before and after, matching only the `usermeta` and demo-app-user
 exceptions afterward. No code, data, or figure changed; no reason to
 re-run `AppTest` or `pytest`.
 
+### D45 — "~46" vs. "50" discrete calibrated levels: verified as two different, correctly-stated populations, not an inconsistency; reproducibility paragraph moved
+
+**D44 landing, checked before touching anything else:** both fixes
+reported in D44 (the opening one-liner, the BRIEF.md parenthetical) are
+present in the committed `README.md` at the commit D44 itself made, and
+that commit is what `origin/main` points at -- confirmed via `git
+fetch` + `git rev-parse HEAD`/`origin/main` matching, not assumed from
+the local working tree alone. No discrepancy found; nothing to redo.
+
+**The "~46" / "50" level counts are two genuinely different
+populations, not one number stated two ways -- verified against the
+artefact directly, not inferred from the surrounding prose.** Loaded
+`figures/demo_test_predictions.csv` (34,853 rows -- the same count the
+README's own "test window" figure uses, confirming this is the right
+artefact) and computed `.nunique()` on `calibrated_hazard` two ways:
+
+- All 34,853 rows: 50 distinct calibrated levels, 31,442 distinct raw
+  scores -- exact match to Section 5's footnote 1 figures.
+- Rows where `event_B` is `False` (globally-censored sellers -- never
+  fail at all, across their whole history): 46 distinct calibrated
+  levels -- exact match to Sections 3/4's figures.
+
+The second population isn't arbitrary: it's the exact definition
+`policy.score_censored_rows()` uses (`labels[~labels["event_B"]]`,
+`src/policy.py` line 89), confirmed by reading that function directly
+-- the same population Sections 3/4's FAR thresholds are quantiled
+from. A first attempt at reproducing this used the row-level `label`
+column (`label == 0`, the specific non-event weeks) instead of
+`event_B` (whole censored-seller histories) and got 50, not 46 --
+wrong population, caught by checking against `score_censored_rows`'s
+actual source rather than guessing which "censored" definition applied.
+
+Both counts are correct for what each is counting; the two just count
+different things (a 32,370-row seller-censoring population vs. all
+34,853 test rows). Fixed by adding population labels at each mention
+rather than picking one number -- Section 3 footnote 2 and Section 4's
+table footnote now both say "censored-seller population" explicitly
+and cross-reference each other; Section 5's footnote 1 now states
+directly that it's counting over the full test window, a different and
+larger population than the ~46-level count elsewhere, with both counts
+named side by side so a reader hits the explanation before the
+apparent contradiction, not after.
+
+**Reproducibility paragraph moved.** "Reproduce every number in this
+document with `./run.sh`..." sat directly under the one-line summary,
+occupying the first screen before a reader reaches what the project
+actually found. Moved to immediately above "Interactive demo," where
+someone looking to run something -- either the pipeline or the demo --
+now finds both sets of instructions together. Section 1 is now the
+first content section a reader reaches, right after the one-line
+summary and the architecture line.
+
+Verified: `README.md` is the only file this entry touches. Every
+number in the moved and reworded passages diffed against the pre-edit
+version -- unchanged; only the population each is counted over, and
+the paragraph's position, changed. No reason to re-run `AppTest` or
+`pytest`.
+
