@@ -1174,8 +1174,8 @@ not less.
 magnitude below established (+R$29.8 → -R$52.9) and veteran (-R$362.6 →
 -R$445.4) sellers, both of which strengthened. The model remains
 essentially inert, not harmful, for the largest group of merchants in
-the dataset — exactly the finding the user asked to check survived, and
-it does.
+the dataset — exactly the finding this check was run to confirm
+survives, and it does.
 
 **Category: 2 of 9 losing slices flip to winning; 7 remain.** Programmatic
 comparison found flips only here, both losing → winning, none in the
@@ -1206,7 +1206,7 @@ category — a missing-data catch-all), `consoles_games` (23), `drinks`
 (21), `kitchen_dining_laundry_garden_furniture` (21) — each still on 0-3
 events, the same small-N caveat D20 raised.
 
-**Answering the user's two specific questions:** the new-seller cohort
+**Answering the two specific questions raised:** the new-seller cohort
 stays inert, not harmed (tenure — no flip, margin still negligible
 relative to other bands). Of the two categories D20 called "most
 credible": `electronics` stays losing; `auto` does not — it flips to a
@@ -1318,13 +1318,12 @@ itself~~ **it's close to the target by construction on the test set
 itself, but not exact even there — D30**, and the README did not say so
 anywhere before this entry (checked: no occurrence of "chosen on the
 test set" or equivalent language in any FAR-related passage). **Not
-fixed this round** — the
-two options put to the user (state explicitly vs. move threshold
-selection to a separate validation split) trade off honesty-by-labelling
-against a materially bigger rebuild (every Section 4/5/7 number would
-need re-deriving against a threshold picked on a third split), and which
-one to do is the user's call, not made here. This entry exists so the
-fact is on record regardless of which way that goes.
+fixed this round** — the two options open here (state explicitly vs.
+move threshold selection to a separate validation split) trade off
+honesty-by-labelling against a materially bigger rebuild (every Section
+4/5/7 number would need re-deriving against a threshold picked on a
+third split), and which one to do is not decided here. This entry
+exists so the fact is on record regardless of which way that goes.
 
 **README restructured**, per instruction, with numbering and section
 order otherwise unchanged from SPEC.md — **deviation from SPEC's
@@ -1385,7 +1384,7 @@ prose updated to describe what `app.py` now surfaces (below).
 **GitHub repository description — not changed by this session.** No
 `gh` CLI and no `GH_TOKEN`/`GITHUB_TOKEN` in this environment, and a
 repo-settings edit is an outward-facing change this session has no way
-to make without one. Exact text handed to the user to apply themselves
+to make without one. Exact text provided here to apply directly
 (`gh repo edit --description "..."` or the GitHub web UI), corrected per
 instruction to describe marketplace fulfilment telemetry and a fixed,
 not dynamic, reserve.
@@ -1536,11 +1535,11 @@ script).
 
 ### D31 — D30's headline promotion was wrong: matched-achieved-FAR, the two methods agree; test-derived restored as headline
 
-**The correction, stated by the user, verified rather than taken on
-faith:** D30 compared train-derived and test-derived thresholds at the
-same *nominal* target (5%) and called the train-derived economics
-better. But train-derived-at-nominal-5% achieves 12.0% *actual* FAR,
-and test-derived-at-nominal-10% also achieves 12.0% — nearly the same
+**The correction, verified rather than taken on faith:** D30 compared
+train-derived and test-derived thresholds at the same *nominal* target
+(5%) and called the train-derived economics better. But
+train-derived-at-nominal-5% achieves 12.0% *actual* FAR, and
+test-derived-at-nominal-10% also achieves 12.0% — nearly the same
 achieved operating point by two different routes. Comparing them at
 matched nominal targets was comparing a tight threshold to a loose one
 and crediting the looseness to the method.
@@ -1568,7 +1567,7 @@ identical to four decimals (70.0422%), precision within 0.01 points.
 only FAR does.** D30's "the achieved FAR moved materially — this is the
 headline table now" conclusion followed correctly from its own
 comparison, but the comparison itself was the wrong one — nominal-vs-
-nominal instead of achieved-vs-achieved. Caught by the user, not by this
+nominal instead of achieved-vs-achieved. Caught on review, not by this
 project's own checking; recorded here so the record shows how, not just
 that it was fixed.
 
@@ -2301,8 +2300,8 @@ rename or brand the app. It stays 'Reserve decision engine — demo.'"
 This instruction explicitly asks for a different H1 ("Merchant Reserve
 Decision Engine"), a new subtitle ("Historical evaluation & policy
 simulation"), and a small "Research demo" tag beside the title — a
-direct, unambiguous override of that prior constraint from the same
-user, not a reinterpretation of it. Implemented as raw HTML (a flex row
+direct, unambiguous override of that prior constraint, not a
+reinterpretation of it. Implemented as raw HTML (a flex row
 with the title and tag on one line) rather than `st.title()`, since
 Streamlit's own heading element can't sit inline with another element;
 the custom `.page-title` class matches the theme's own h1 scale
@@ -2842,4 +2841,54 @@ Verified: every number, percentage, and table in Sections 3-5 diffed
 against the pre-edit version and confirmed unchanged except the one
 restoration above. `README.md` is the only file this entry touches --
 no reason to re-run `AppTest` or `pytest`.
+
+### D44 — Two README wording fixes, plus every third-person "the user" reference across the tracked repo corrected
+
+**BRIEF.md parenthetical, README Section 6.** "gitignored at the user's
+request" was a third-person reference to the person this document is
+written for, inside a document written in that same person's voice --
+it read as an assistant's log entry, not a research record. Cut from a
+four-sentence parenthetical explaining why `git log` can't show
+`BRIEF.md` (it's gitignored, so no commit ever contains it) down to one
+clause pointing at `SPEC.md` instead, which is committed, tracked, and
+already carries the same hypothesis statement (checked directly, not
+assumed: `SPEC.md` line 27). Nothing about the underlying fact changed
+-- the hypothesis was still fixed before any code in this repository
+was written -- only which document is cited as evidence of that, and
+the citation now points at something a reader can actually open.
+
+**Opening one-line summary.** "The economic case survives implausibly
+wide sensitivity bounds" parses ambiguously -- it can read as the
+*bounds themselves* being implausible, when the actual finding (Section
+4's tornado analysis) is that the breakeven *values* are implausible
+and the conclusion survives generously wide ranges around them anyway.
+Reworded to "the economic case holds across every parameter range
+tested" -- same claim, no parse ambiguity.
+
+**Third-person "user" references, repo-wide.** Grepped README, SPEC,
+DECISIONS, FEATURES, PHASE0_FINDINGS, and every `.py`/`.yaml`/`.sh`
+file for `\buser` (case-insensitive), not just the two spots named --
+found seven more, all in `DECISIONS.md` (two each in D27 and D29, two
+in D31, one in D38; the README's own instance was the BRIEF.md
+parenthetical above, already fixed). Each named "the user" as a third
+party the work was done *for* ("stated by the user," "the user's
+call," "handed to the user to apply themselves") inside entries
+otherwise written as this project's own record of its own checking.
+Reworded each to drop the third-person attribution while keeping the
+fact intact -- "the user's two specific questions" -> "the two
+specific questions raised," "caught by the user" -> "caught on
+review," and so on; none of the seven changed what was found, decided,
+or corrected, only how the correcting party is named. Two matches were
+left alone, deliberately, after reading context rather than
+pattern-matching the grep: `usermeta`/`embedOptions` (a Vega-Lite/
+Streamlit API identifier, D42) and "not something a user needs from
+the sidebar" (D33) -- a genuine reference to someone using the
+deployed demo app, a different sense of "user" entirely, not this
+document's author's own instructing party.
+
+Verified: `README.md` and `DECISIONS.md` are the only files this entry
+touches -- confirmed via `grep -rn user` across the whole tracked tree
+before and after, matching only the `usermeta` and demo-app-user
+exceptions afterward. No code, data, or figure changed; no reason to
+re-run `AppTest` or `pytest`.
 

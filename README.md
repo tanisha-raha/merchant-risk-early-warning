@@ -1,8 +1,8 @@
 # Merchant Cessation Early-Warning & Reserve Policy Simulation
 
 **One-line summary of where this landed:** the hypothesised mechanism
-failed, a simpler one works modestly, and the economic case survives
-implausibly wide sensitivity bounds.
+failed, a simpler one works modestly, and the economic case holds
+across every parameter range tested.
 
 Reproduce every number in this document with `./run.sh` (lint, tests,
 then every phase's scripts, in order). Individual scripts are documented
@@ -445,17 +445,12 @@ generalising signal, the opposite of what the hypothesis predicted.
 
 ![Ablation result: levels vs. trend vs. acceleration](figures/readme_ablation.png)
 
-This hypothesis was stated in `BRIEF.md` before any code in this
-repository was written — no commit in this repository's history predates
-it. (`BRIEF.md` itself is gitignored at the user's request, so it is not
-part of the tracked deliverable and cannot literally appear in `git log`
-— what git history does confirm is that every commit in this repository,
-starting from the first, postdates the point the hypothesis was already
-fixed, not the reverse.) It was tested directly, on the cleanest cut of
-the data available, and rejected. A full-detail version of this figure,
-including the train/test bars for the confirmation-anchored and
-last-order-anchored point tests across all three tiers, is in
-`figures/phase4_ablation.png`.
+This hypothesis was fixed before any code in this repository was
+written (see `SPEC.md`, committed and tracked). It was tested directly,
+on the cleanest cut of the data available, and rejected. A full-detail
+version of this figure, including the train/test bars for the
+confirmation-anchored and last-order-anchored point tests across all
+three tiers, is in `figures/phase4_ablation.png`.
 
 **This is not a "no signal exists" result.** Levels alone carry real,
 moderate signal — 0.68–0.70 AUC — about whether an actively-trading
